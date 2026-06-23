@@ -75,6 +75,7 @@ export const PARKS: Record<ParkId, ParkMeta> = {
       "Disney's Contemporary Resort",
       "Disney's Polynesian Village Resort",
       "Disney's Grand Floridian Resort & Spa",
+      "Disney's Wilderness Lodge",
       "Disney's Riviera Resort",
       "Disney's Beach Club Resort",
       'Walt Disney World Swan',

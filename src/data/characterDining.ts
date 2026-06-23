@@ -39,7 +39,7 @@ export const CHARACTER_DINING: Attraction[] = [
     'mk-cinderellas-royal-table',
     "Cinderella's Royal Table",
     'Magic Kingdom',
-    `Characters: Disney Princesses (Cinderella, Ariel, Aurora, Jasmine & Snow White) • breakfast, lunch & dinner inside the castle • ${RESERVATION}`,
+    `Characters: Disney Princesses (Cinderella, plus Ariel, Aurora, Belle, Jasmine & Snow White rotating) • breakfast, lunch & dinner inside the castle • ${RESERVATION}`,
     { x: 300, y: 270 },
   ),
   meal(
@@ -60,7 +60,7 @@ export const CHARACTER_DINING: Attraction[] = [
     'epcot-akershus',
     'Akershus Royal Banquet Hall',
     'EPCOT',
-    `Characters: Disney Princesses (Belle, Ariel, Aurora, Snow White & more) • breakfast, lunch & dinner • Norway pavilion • ${RESERVATION}`,
+    `Characters: Disney Princesses & friends (Belle, Cinderella, Ariel, Aurora, Snow White, Jasmine, Mulan & Mary Poppins rotate) • breakfast, lunch & dinner • Norway pavilion • ${RESERVATION}`,
     { x: 445, y: 445 },
   ),
 
@@ -69,7 +69,7 @@ export const CHARACTER_DINING: Attraction[] = [
     'resort-chef-mickeys',
     "Chef Mickey's",
     "Disney's Contemporary Resort",
-    `Characters: Mickey, Minnie, Donald, Goofy & Pluto • breakfast & brunch buffet • ${RESERVATION}`,
+    `Characters: Mickey, Minnie, Donald, Goofy & Pluto (chef attire) • breakfast, brunch & dinner buffet • ${RESERVATION}`,
   ),
   meal(
     'resort-ohana-breakfast',
@@ -87,18 +87,24 @@ export const CHARACTER_DINING: Attraction[] = [
     'resort-cape-may',
     "Cape May Cafe – Minnie's Beach Bash",
     "Disney's Beach Club Resort",
-    `Characters: Minnie, Goofy & Donald (beach attire) • breakfast buffet • ${RESERVATION}`,
+    `Characters: Minnie, Goofy, Donald & Daisy (beach attire) • breakfast buffet • ${RESERVATION}`,
   ),
   meal(
     'resort-1900-park-fare',
-    '1900 Park Fare – Supercalifragilistic Breakfast',
+    '1900 Park Fare',
     "Disney's Grand Floridian Resort & Spa",
-    `Characters: Mary Poppins, Alice, the Mad Hatter, Winnie the Pooh & Tigger • breakfast buffet • ${RESERVATION}`,
+    `Characters: Cinderella, Tiana, Aladdin & Mirabel • character breakfast & dinner buffet • ${RESERVATION}`,
+  ),
+  meal(
+    'resort-artist-point',
+    'Story Book Dining at Artist Point',
+    "Disney's Wilderness Lodge",
+    `Characters: Snow White, the Evil Queen, Dopey & Grumpy • character dinner (prix-fixe) • ${RESERVATION}`,
   ),
   meal(
     'resort-garden-grove',
-    'Garden Grove Character Breakfast',
+    'Garden Grove Character Meal',
     'Walt Disney World Swan',
-    `Characters: Goofy & Pluto • breakfast on select mornings • ${RESERVATION}`,
+    `Characters: Goofy & Pluto (lineup varies) • character dinner nightly + weekend-morning breakfast • ${RESERVATION}`,
   ),
 ];
