@@ -175,6 +175,17 @@ export function AttractionCard({ attraction, showAddToRoute = true }: Props) {
         <p className="text-[11px] italic text-slate-400">{attraction.note}</p>
       )}
 
+      {attraction.url && (
+        <a
+          href={attraction.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] font-semibold text-indigo-600 hover:underline"
+        >
+          View menu ↗
+        </a>
+      )}
+
       <TagControl attractionId={attraction.id} summary={summary} />
     </div>
   );

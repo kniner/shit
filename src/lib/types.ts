@@ -54,6 +54,8 @@ export interface Attraction {
   onlyDuringEvent?: EventType;
   /** Short note shown on the card (e.g. characters at a dining location). */
   note?: string;
+  /** Optional external link (e.g. the official menu page for a dining spot). */
+  url?: string;
   /** One-line explanation of what the ride/attraction is. */
   description?: string;
   /** Gluten-free options available (food/dining locations). */
