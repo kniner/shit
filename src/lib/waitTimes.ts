@@ -23,16 +23,22 @@ for (const a of ITEMS) {
   LIVE_NAME_TO_ID.set(normalize(a.name), a.id);
 }
 
-async function fetchPark(queueTimesId: number, signal?: AbortSignal): Promise<LiveWaits> {
-  const res = await fetch(`https://queue-times.com/parks/${queueTimesId}/queue_times.json`, {
-    signal,
-  });
-  if (!res.ok) return {};
-  const data: QueueTimesResponse = await res.json();
+// queue-times.com doesn't send CORS headers, so a browser on our deployed origin
+// can't read it directly — we route through a CORS proxy. Set VITE_WAITS_PROXY
+// (e.g. a Cloudflare Worker base URL that takes the target as a suffix) to use
+// your own; otherwise fall back to public proxies, trying each in order.
+const CONFIGURED_PROXY = import.meta.env.VITE_WAITS_PROXY as string | undefined;
+const PROXY_BUILDERS: ((target: string) => string)[] = CONFIGURED_PROXY
+  ? [(t) => `${CONFIGURED_PROXY}${encodeURIComponent(t)}`]
+  : [
+      (t) => `https://corsproxy.io/?url=${encodeURIComponent(t)}`,
+      (t) => `https://api.allorigins.win/raw?url=${encodeURIComponent(t)}`,
+    ];
+
+function parseRides(data: QueueTimesResponse): LiveWaits {
   const rides: QueueTimesRide[] = data.lands
     ? data.lands.flatMap((l) => l.rides)
     : (data.rides ?? []);
-
   const out: LiveWaits = {};
   for (const ride of rides) {
     const id = LIVE_NAME_TO_ID.get(normalize(ride.name));
@@ -40,6 +46,20 @@ async function fetchPark(queueTimesId: number, signal?: AbortSignal): Promise<Li
     out[id] = { wait: ride.wait_time ?? 0, isOpen: !!ride.is_open };
   }
   return out;
+}
+
+async function fetchPark(queueTimesId: number, signal?: AbortSignal): Promise<LiveWaits> {
+  const target = `https://queue-times.com/parks/${queueTimesId}/queue_times.json`;
+  for (const build of PROXY_BUILDERS) {
+    try {
+      const res = await fetch(build(target), { signal });
+      if (!res.ok) continue;
+      return parseRides((await res.json()) as QueueTimesResponse);
+    } catch {
+      // try the next proxy
+    }
+  }
+  return {};
 }
 
 /**
