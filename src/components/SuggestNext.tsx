@@ -73,6 +73,16 @@ export function SuggestNext() {
                 <p className="text-[11px] text-slate-500">
                   {s.walk > 0 && <>walk {s.walk}m · </>}
                   wait {s.wait}m
+                  {s.vsAvg !== undefined && s.vsAvg <= -10 && (
+                    <span className="ml-1 font-semibold text-emerald-600">
+                      · {-s.vsAvg}m below typical
+                    </span>
+                  )}
+                  {s.vsAvg !== undefined && s.vsAvg >= 10 && (
+                    <span className="ml-1 font-semibold text-rose-500">
+                      · {s.vsAvg}m above typical
+                    </span>
+                  )}
                   {s.priority && (
                     <span className="ml-1 font-semibold" style={{ color: TAG_META[s.priority].color }}>
                       · {TAG_META[s.priority].short}
@@ -91,8 +101,8 @@ export function SuggestNext() {
         </ul>
       )}
       <p className="text-[10px] text-slate-400">
-        Ranked by walking time, {day.settings.waitMode} wait, and how much the group
-        wants it.
+        Ranked by walking time, {day.settings.waitMode} wait, how much the group
+        wants it, and whether the line is shorter or longer than typical right now.
       </p>
     </section>
   );

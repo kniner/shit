@@ -12,12 +12,27 @@ export interface Suggestion {
   wait: number;
   /** Group priority tag (must/nice/null); 'avoid' items are excluded. */
   priority: 'must' | 'nice' | null;
+  /**
+   * Live wait right now minus the ride's typical (avg) wait, when a live feed
+   * value is available and the ride is open. Negative = shorter than usual (a
+   * good time to grab it); positive = busier than usual. Undefined with no live
+   * read. This is a *relative* signal, separate from the absolute `wait`.
+   */
+  vsAvg?: number;
   /** Lower is better. */
   score: number;
 }
 
 /** Priority bonus subtracted from the score (must-dos rank higher). */
 const PRIORITY_BONUS: Record<'must' | 'nice', number> = { must: 30, nice: 12 };
+
+/**
+ * How hard the live-vs-typical signal pushes the ranking. Each minute the
+ * current wait is below (or above) the ride's average shifts the score by this
+ * much, so a ride running ~30m shorter than usual gets a boost comparable to a
+ * "nice" tag — enough to surface a rare short queue without overriding must-dos.
+ */
+const OPPORTUNITY_WEIGHT = 0.5;
 
 /** Kinds worth suggesting as a "next thing to do" while touring. */
 const SUGGESTABLE = new Set<Attraction['kind']>(['ride', 'show', 'attraction', 'entertainment']);
@@ -70,9 +85,20 @@ export function suggestNext(
 
     const walk = fromItem ? walkMinutes(fromItem, item, day.settings.pace) : 0;
     const wait = waitFor(item.id, day.settings.waitMode, live);
-    const score = walk + wait - (priority ? PRIORITY_BONUS[priority] : 0);
 
-    out.push({ item, walk, wait, priority, score });
+    // Relative opportunity: if a live read says this ride is open and running
+    // shorter than its typical wait, now's the moment — boost it (and vice
+    // versa). Independent of `wait`, so it works even in avg/max wait mode.
+    const l = live[item.id];
+    const vsAvg = l && l.isOpen ? l.wait - item.avgWait : undefined;
+
+    const score =
+      walk +
+      wait -
+      (priority ? PRIORITY_BONUS[priority] : 0) +
+      (vsAvg !== undefined ? OPPORTUNITY_WEIGHT * vsAvg : 0);
+
+    out.push({ item, walk, wait, priority, vsAvg, score });
   }
 
   return out.sort((a, b) => a.score - b.score).slice(0, limit);
