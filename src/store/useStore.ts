@@ -77,6 +77,16 @@ function nameKey(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
+/**
+ * Pull a bare Venmo username out of whatever the user pasted — a full profile
+ * URL (venmo.com/u/handle), an @mention, or just the handle. Returns undefined
+ * if nothing usable is found (which clears the field).
+ */
+function normalizeVenmo(raw: string): string | undefined {
+  const m = raw.trim().match(/(?:venmo\.com\/(?:u\/)?)?@?([A-Za-z0-9_-]{1,30})\/?$/i);
+  return m ? m[1] : undefined;
+}
+
 function loadLegacyChecked(): string[] {
   try {
     const raw = localStorage.getItem(CHECKED_KEY);
@@ -319,6 +329,8 @@ interface StoreState {
   /** Dismiss the first-run checklist for the current account (synced). */
   dismissOnboarding: () => void;
   removeCollaborator: (userId: string) => void;
+  /** Set (or clear) the current user's own Venmo handle for settle-up links. */
+  setVenmo: (handle: string) => void;
 
   // Days
   setActiveDay: (dayId: string) => void;
@@ -536,6 +548,19 @@ export const useStore = create<StoreState>((set, get) => {
       commit({
         ...doc,
         onboardingDismissed: { ...doc.onboardingDismissed, [meId]: ONBOARDING_VERSION },
+      });
+    },
+
+    setVenmo(handle) {
+      const meId = me();
+      if (!meId) return;
+      const venmo = normalizeVenmo(handle);
+      const doc = get().doc;
+      commit({
+        ...doc,
+        collaborators: doc.collaborators.map((c) =>
+          c.id === meId ? { ...c, venmo } : c,
+        ),
       });
     },
 

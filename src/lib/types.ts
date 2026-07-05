@@ -164,6 +164,11 @@ export interface Collaborator {
   id: string;
   name: string;
   color: string;
+  /**
+   * Optional Venmo username (no leading @), used to build settle-up payment
+   * links on the budget page. Each person sets their own.
+   */
+  venmo?: string;
 }
 
 /**
