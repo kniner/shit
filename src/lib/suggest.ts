@@ -43,6 +43,8 @@ interface Ctx {
   tags: TagEntry[];
   collaborators: Collaborator[];
   meId: string | null;
+  /** Attraction ids the party has already done — never suggested again. */
+  completed?: string[];
 }
 
 /** Item ids already scheduled in the day (main route + split branches). */
@@ -70,13 +72,15 @@ export function suggestNext(
   fromItem: Attraction | undefined,
   limit = 5,
 ): Suggestion[] {
-  const { day, live, tags, collaborators, meId } = ctx;
+  const { day, live, tags, collaborators, meId, completed } = ctx;
   const done = scheduledIds(day);
+  const doneRiding = new Set(completed ?? []);
 
   const out: Suggestion[] = [];
   for (const item of itemsForDay(day.park, day.event)) {
     if (!SUGGESTABLE.has(item.kind)) continue;
     if (done.has(item.id)) continue;
+    if (doneRiding.has(item.id)) continue; // already rode it — don't suggest again
     if (fromItem && item.id === fromItem.id) continue;
 
     const consensus = summarizeTags(item.id, tags, collaborators, meId).consensus;

@@ -82,6 +82,15 @@ describe('suggestNext', () => {
     expect(res.find((r) => r.item.id === 'big-thunder')?.vsAvg).toBeUndefined();
   });
 
+  it('never suggests an attraction the party has already completed', () => {
+    const res = suggestNext(
+      { ...ctx(), completed: ['big-thunder'] },
+      ITEMS_BY_ID['space-mountain'],
+      100,
+    );
+    expect(res.some((r) => r.item.id === 'big-thunder')).toBe(false);
+  });
+
   it('skips items already in the route', () => {
     const c = {
       ...ctx(),

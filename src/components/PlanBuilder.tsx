@@ -30,7 +30,24 @@ export function PlanBuilder() {
   const addCustomStop = useStore((s) => s.addCustomStop);
   const addSplit = useStore((s) => s.addSplit);
   const collaborators = useStore((s) => s.doc.collaborators);
+  const completed = useStore((s) => s.doc.completed);
+  const toggleCompleted = useStore((s) => s.toggleCompleted);
   const day = useActiveDay();
+
+  // Attraction ids scheduled on this day (main route + split branches), used to
+  // show how many of today's stops the party has already knocked out.
+  const dayAttractionIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const s of day.stops) {
+      if (s.kind === 'split' && s.branches) {
+        for (const b of s.branches) for (const bs of b.stops) if (bs.attractionId) ids.add(bs.attractionId);
+      } else if (s.attractionId) {
+        ids.add(s.attractionId);
+      }
+    }
+    return ids;
+  }, [day.stops]);
+  const doneToday = [...dayAttractionIds].filter((id) => completed.includes(id)).length;
 
   const memberNames = (members: string[], manualMembers: string[]): string[] => [
     ...members
@@ -70,8 +87,13 @@ export function PlanBuilder() {
       </div>
 
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
+        <h2 className="flex flex-wrap items-center gap-2 text-sm font-bold uppercase tracking-wide text-slate-500">
           {day.name} · {day.stops.length} {isOther ? 'blocks' : 'stops'}
+          {!isOther && doneToday > 0 && (
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold normal-case tracking-normal text-emerald-700">
+              🎉 {doneToday} done today · {completed.length} this trip
+            </span>
+          )}
         </h2>
         {!isOther && (
           <div className="flex gap-1">
@@ -157,13 +179,16 @@ export function PlanBuilder() {
             }
 
             const isCustom = es.stop.kind === 'custom';
+            const isDone = !isCustom && !!es.stop.attractionId && completed.includes(es.stop.attractionId);
             return (
               <li
                 key={es.stop.id}
                 className={`rounded-lg p-3 shadow-sm ring-1 ${
-                  isCustom
-                    ? 'bg-slate-50 ring-slate-200'
-                    : 'bg-white ring-slate-100'
+                  isDone
+                    ? 'bg-emerald-50/60 ring-emerald-200'
+                    : isCustom
+                      ? 'bg-slate-50 ring-slate-200'
+                      : 'bg-white ring-slate-100'
                 }`}
               >
                 {es.walk > 0 && (
@@ -177,15 +202,21 @@ export function PlanBuilder() {
                 <div className="flex items-start gap-2">
                   <span
                     className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
-                      isCustom ? 'bg-slate-400' : 'bg-slate-900'
+                      isDone ? 'bg-emerald-500' : isCustom ? 'bg-slate-400' : 'bg-slate-900'
                     }`}
                   >
-                    {isCustom ? '⛌' : i + 1}
+                    {isDone ? '✓' : isCustom ? '⛌' : i + 1}
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold">{es.label}</p>
+                        <p
+                          className={`truncate text-sm font-semibold ${
+                            isDone ? 'text-slate-400 line-through' : ''
+                          }`}
+                        >
+                          {es.label}
+                        </p>
                         {isCustom && es.stop.custom?.address && (
                           <p className="truncate text-[11px] text-slate-400">
                             {es.stop.custom.address}
@@ -193,6 +224,19 @@ export function PlanBuilder() {
                         )}
                       </div>
                       <div className="flex shrink-0 gap-1">
+                        {!isCustom && es.stop.attractionId && (
+                          <button
+                            onClick={() => toggleCompleted(es.stop.attractionId!)}
+                            className={`flex h-6 w-6 items-center justify-center rounded border text-xs ${
+                              isDone
+                                ? 'border-emerald-400 bg-emerald-500 text-white'
+                                : 'border-slate-200 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600'
+                            }`}
+                            title={isDone ? 'Done — tap to undo' : 'Mark as done'}
+                          >
+                            ✓
+                          </button>
+                        )}
                         <IconBtn onClick={() => moveStop(es.stop.id, -1)} disabled={i === 0}>
                           ↑
                         </IconBtn>

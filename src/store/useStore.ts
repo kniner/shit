@@ -160,6 +160,7 @@ function emptyDoc(): PlanDoc {
     bookingDone: [],
     bookingCustom: [],
     organizerNotes: '',
+    completed: [],
   };
 }
 
@@ -301,6 +302,7 @@ function migrate(raw: unknown): PlanDoc {
     bookingDone: Array.isArray(doc.bookingDone) ? doc.bookingDone : [],
     bookingCustom: Array.isArray(doc.bookingCustom) ? doc.bookingCustom : [],
     organizerNotes: typeof doc.organizerNotes === 'string' ? doc.organizerNotes : '',
+    completed: Array.isArray(doc.completed) ? doc.completed.filter((x) => typeof x === 'string') : [],
   };
 }
 
@@ -420,6 +422,9 @@ interface StoreState {
   addBookingTask: (text: string, daysBefore: number) => void;
   removeBookingTask: (id: string) => void;
   setOrganizerNotes: (notes: string) => void;
+
+  /** Mark an attraction done / not-done for the whole party (trip-wide). */
+  toggleCompleted: (attractionId: string) => void;
 
   refreshLive: () => Promise<void>;
 }
@@ -1347,6 +1352,14 @@ export const useStore = create<StoreState>((set, get) => {
     setOrganizerNotes(notes) {
       const doc = get().doc;
       commit({ ...doc, organizerNotes: notes });
+    },
+
+    toggleCompleted(attractionId) {
+      const doc = get().doc;
+      const completed = doc.completed.includes(attractionId)
+        ? doc.completed.filter((x) => x !== attractionId)
+        : [...doc.completed, attractionId];
+      commit({ ...doc, completed });
     },
 
     async refreshLive() {

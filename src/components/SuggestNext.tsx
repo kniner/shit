@@ -11,7 +11,9 @@ export function SuggestNext() {
   const tags = useStore((s) => s.doc.tags);
   const collaborators = useStore((s) => s.doc.collaborators);
   const meId = useStore((s) => s.meId);
+  const completed = useStore((s) => s.doc.completed);
   const addStop = useStore((s) => s.addStop);
+  const toggleCompleted = useStore((s) => s.toggleCompleted);
 
   // Default "you're at" to the last located stop in the route.
   const lastItemId = useMemo(() => {
@@ -29,8 +31,8 @@ export function SuggestNext() {
   const dayItems = useMemo(() => itemsForDay(day.park, day.event), [day.park, day.event]);
 
   const suggestions = useMemo(
-    () => suggestNext({ day, live, tags, collaborators, meId }, fromItem, 5),
-    [day, live, tags, collaborators, meId, fromItem],
+    () => suggestNext({ day, live, tags, collaborators, meId, completed }, fromItem, 5),
+    [day, live, tags, collaborators, meId, completed, fromItem],
   );
 
   return (
@@ -90,12 +92,22 @@ export function SuggestNext() {
                   )}
                 </p>
               </div>
-              <button
-                onClick={() => addStop(s.item.id)}
-                className="shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
-              >
-                + Add
-              </button>
+              <div className="flex shrink-0 gap-1">
+                <button
+                  onClick={() => toggleCompleted(s.item.id)}
+                  className="rounded-md border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                  title="We rode it — mark done and remove from suggestions"
+                >
+                  ✓ Rode it
+                </button>
+                <button
+                  onClick={() => addStop(s.item.id)}
+                  className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  title="Add to today's route"
+                >
+                  + Add
+                </button>
+              </div>
             </li>
           ))}
         </ul>

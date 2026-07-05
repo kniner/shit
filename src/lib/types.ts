@@ -247,6 +247,13 @@ export interface PlanDoc {
   bookingCustom: BookingTask[];
   /** Owner-only: the organizer's private scratchpad notes. */
   organizerNotes: string;
+  /**
+   * Attraction ids the party has completed ("we rode it"). Shared across the
+   * whole trip and every device, keyed by attraction id — done is done no matter
+   * which day it was scheduled on. Checked off from the schedule or Suggested
+   * Next; drives the "done" styling and the completed tally.
+   */
+  completed: string[];
 }
 
 /** A pre-trip booking/prep task, due a number of days before the trip starts. */
