@@ -18,8 +18,6 @@ export interface QuizAnswers {
   waits: WaitPref;
   /** Penalize water rides (don't want to get soaked). */
   avoidWater: boolean;
-  /** Exclude rides with a pregnancy advisory. */
-  pregnant: boolean;
   /** Favor indoor / air-conditioned rides. */
   indoor: boolean;
   /** Boost rides from these franchises. */
@@ -34,7 +32,6 @@ export const DEFAULT_ANSWERS: QuizAnswers = {
   spectacle: false,
   waits: 'any',
   avoidWater: false,
-  pregnant: false,
   indoor: false,
   franchises: [],
 };
@@ -55,8 +52,6 @@ export function recommendRides(ans: QuizAnswers, limit = 8): Attraction[] {
       const w = RIDE_WARNINGS[a.id] ?? {};
       // Thrill closeness: 4 (exact) → 2 → 0 → -2 (furthest).
       let score = 4 - Math.abs(v.thrill - target) * 2;
-      // Pregnancy advisory is a hard exclude.
-      if (ans.pregnant && w.pregnancy) score -= 100;
       if (ans.motionSensitive && w.motion) score -= 6;
       if (ans.littleKids) {
         if (v.kids) score += 3;

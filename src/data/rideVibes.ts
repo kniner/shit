@@ -1,6 +1,6 @@
 /**
  * Lightweight "vibe" tags for Magic Kingdom & EPCOT rides and shows, used by the
- * ride-suggestion quiz. Safety facts (height/motion/pregnancy) come from
+ * ride-suggestion quiz. Safety facts (height/motion) come from
  * RIDE_WARNINGS; this captures taste: how thrilling, what kind of experience,
  * whether it's indoor/AC, and which franchise it belongs to.
  */

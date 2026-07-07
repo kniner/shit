@@ -177,14 +177,6 @@ export function RideQuiz() {
             <label className="flex items-center gap-1.5">
               <input
                 type="checkbox"
-                checked={ans.pregnant}
-                onChange={(e) => setAns((p) => ({ ...p, pregnant: e.target.checked }))}
-              />
-              Someone's pregnant
-            </label>
-            <label className="flex items-center gap-1.5">
-              <input
-                type="checkbox"
                 checked={ans.indoor}
                 onChange={(e) => setAns((p) => ({ ...p, indoor: e.target.checked }))}
               />
