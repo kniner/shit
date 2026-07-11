@@ -322,8 +322,13 @@ interface StoreState {
   live: LiveWaits;
   liveStatus: 'idle' | 'loading' | 'ok' | 'unavailable';
   ready: boolean;
+  /** Attraction id whose detail page is open (ephemeral UI state, not synced). */
+  detailId: string | null;
 
   init: () => Promise<void>;
+  /** Open / close the full ride-detail overlay. */
+  openDetail: (attractionId: string) => void;
+  closeDetail: () => void;
   join: (name: string) => void;
   leave: () => void;
   /** Dismiss the first-run checklist for the current account (synced). */
@@ -479,6 +484,14 @@ export const useStore = create<StoreState>((set, get) => {
     live: {},
     liveStatus: 'idle',
     ready: false,
+    detailId: null,
+
+    openDetail(attractionId) {
+      set({ detailId: attractionId });
+    },
+    closeDetail() {
+      set({ detailId: null });
+    },
 
     async init() {
       const remote = await provider.load();

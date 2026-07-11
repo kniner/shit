@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { AttractionDetail } from './components/AttractionDetail';
 import { FirstRunChecklist } from './components/FirstRunChecklist';
 import { JoinGate } from './components/JoinGate';
 import { ListsView } from './components/ListsView';
@@ -191,6 +192,9 @@ export default function App() {
         Wait times are planning estimates; live data via queue-times.com when
         available.
       </footer>
+
+      {/* Full ride-detail overlay, opened from cards and map markers. */}
+      <AttractionDetail />
     </div>
   );
 }

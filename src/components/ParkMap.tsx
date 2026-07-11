@@ -111,6 +111,7 @@ export function ParkMap() {
   const live = useStore((s) => s.live);
   const liveStatus = useStore((s) => s.liveStatus);
   const refreshLive = useStore((s) => s.refreshLive);
+  const openDetail = useStore((s) => s.openDetail);
   const [showWaits, setShowWaits] = useState(false);
   const [labelsOn, setLabelsOn] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -654,16 +655,24 @@ export function ParkMap() {
                 {warn?.bigTall && <span className={chip}>📐 fit</span>}
               </div>
               {selected.description && <p className="text-slate-500">{selected.description}</p>}
-              {selected.url && (
-                <a
-                  href={selected.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-block font-semibold text-indigo-600 hover:underline"
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={() => openDetail(selected.id)}
+                  className="font-semibold text-indigo-600 hover:underline"
                 >
-                  View menu ↗
-                </a>
-              )}
+                  Full details →
+                </button>
+                {selected.url && (
+                  <a
+                    href={selected.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-indigo-600 hover:underline"
+                  >
+                    View menu ↗
+                  </a>
+                )}
+              </div>
             </div>
           );
         })()
