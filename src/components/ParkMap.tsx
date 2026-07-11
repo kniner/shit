@@ -193,7 +193,6 @@ export function ParkMap() {
     }
     return pts;
   }, [day.stops]);
-  const routeIds = useMemo(() => new Set(routePoints.map((p) => p.id)), [routePoints]);
 
   if (items.length === 0) return null;
 
@@ -360,6 +359,17 @@ export function ParkMap() {
           onPointerCancel={onPointerUp}
           onWheel={onWheel}
         >
+          {/* Parkland background — a soft green ground plane so the map reads as
+              a park, not dots on white. Oversized so it always fills the view. */}
+          <rect
+            x={base.x - base.w}
+            y={base.y - base.h}
+            width={base.w * 3}
+            height={base.h * 3}
+            fill="#eafaef"
+            pointerEvents="none"
+          />
+
           {/* Land zones */}
           {zones.map((z) => (
             <g key={z.label} pointerEvents="none">
@@ -406,20 +416,31 @@ export function ParkMap() {
             );
           })}
 
-          {/* Walking paths */}
-          {paths.map((p, i) => (
-            <polyline
-              key={`path-${i}`}
-              points={p.map((pt) => `${pt.x},${pt.y}`).join(' ')}
-              fill="none"
-              stroke="#ffffff"
-              strokeWidth={7 * s}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity={0.9}
-              pointerEvents="none"
-            />
-          ))}
+          {/* Walking paths — drawn as a wider warm-grey walkway with a soft
+              cream centre so they look like paved paths rather than plain lines. */}
+          {paths.map((p, i) => {
+            const pts = p.map((pt) => `${pt.x},${pt.y}`).join(' ');
+            return (
+              <g key={`path-${i}`} pointerEvents="none">
+                <polyline
+                  points={pts}
+                  fill="none"
+                  stroke="#d6d3d1"
+                  strokeWidth={10 * s}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <polyline
+                  points={pts}
+                  fill="none"
+                  stroke="#faf7f0"
+                  strokeWidth={6 * s}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </g>
+            );
+          })}
 
           {/* Trick-or-treat trail (MNSSHP) */}
           {isHalloween && showTot && (
@@ -522,13 +543,12 @@ export function ParkMap() {
             );
           })}
 
-          {/* Attraction name labels. To avoid clutter at low zoom we only label
-              the ones that matter (tagged / in your route / selected) until you
-              zoom in past 2× or flip the Labels toggle on. */}
+          {/* Attraction name labels. Off by default to keep the map clean —
+              only the selected marker is named. Zoom in past ~2.5× or flip the
+              🏷 Labels toggle to reveal the rest. */}
           {items.map((it) => {
-            const consensus = summarizeTags(it.id, tags, collaborators, meId).consensus;
             const isSel = it.id === selectedId;
-            const show = labelsOn || zoom >= 2 || isSel || !!consensus || routeIds.has(it.id);
+            const show = labelsOn || zoom >= 2.5 || isSel;
             if (!show) return null;
             return (
               <text
@@ -536,8 +556,8 @@ export function ParkMap() {
                 x={it.coords.x}
                 y={it.coords.y + 12 * s}
                 textAnchor="middle"
-                fontSize={8.5 * s}
-                fontWeight={isSel || consensus ? 700 : 500}
+                fontSize={8 * s}
+                fontWeight={isSel ? 700 : 500}
                 fill="#0f172a"
                 stroke="#ffffff"
                 strokeWidth={2.5 * s}
@@ -573,11 +593,13 @@ export function ParkMap() {
               );
             })}
 
-          {/* Landmarks (always shown) */}
+          {/* Landmarks (always shown) — the park icons drawn as real shapes. */}
           {amenities
             .filter((a) => a.type === 'landmark')
             .map((a) => {
               const caption = `${a.land}${a.note ? ` — ${a.note}` : ''}`;
+              const isCastle = a.id.includes('castle');
+              const isSphere = a.id.includes('sse');
               return (
                 <g
                   key={a.id}
@@ -587,11 +609,17 @@ export function ParkMap() {
                   }}
                   style={{ cursor: 'pointer' }}
                 >
-                  <circle cx={a.coords.x} cy={a.coords.y} r={14 * s} fill="transparent" />
-                  <text x={a.coords.x} y={a.coords.y} dy="0.35em" textAnchor="middle" fontSize={22 * s}>
-                    {AMENITY_GLYPH.landmark}
-                    <title>{caption}</title>
-                  </text>
+                  <circle cx={a.coords.x} cy={a.coords.y} r={18 * s} fill="transparent" />
+                  {isCastle ? (
+                    <CastleGlyph x={a.coords.x} y={a.coords.y} s={s} />
+                  ) : isSphere ? (
+                    <SphereGlyph x={a.coords.x} y={a.coords.y} s={s} />
+                  ) : (
+                    <text x={a.coords.x} y={a.coords.y} dy="0.35em" textAnchor="middle" fontSize={22 * s}>
+                      {AMENITY_GLYPH.landmark}
+                    </text>
+                  )}
+                  <title>{caption}</title>
                 </g>
               );
             })}
@@ -686,6 +714,49 @@ export function ParkMap() {
         </p>
       )}
     </section>
+  );
+}
+
+/** A little stylized Cinderella Castle, authored in local units and placed via
+ *  a translate+scale so it tracks zoom like the other markers. */
+function CastleGlyph({ x, y, s }: { x: number; y: number; s: number }) {
+  const wall = '#e2e8f0';
+  const wallStroke = '#94a3b8';
+  const roof = '#3b82f6';
+  const roofStroke = '#1d4ed8';
+  return (
+    <g transform={`translate(${x} ${y}) scale(${s})`} strokeLinejoin="round">
+      {/* side towers */}
+      <rect x={-22} y={-14} width={8} height={26} fill={wall} stroke={wallStroke} strokeWidth={1.2} />
+      <polygon points="-23,-14 -13,-14 -18,-27" fill={roof} stroke={roofStroke} strokeWidth={1.2} />
+      <rect x={14} y={-14} width={8} height={26} fill={wall} stroke={wallStroke} strokeWidth={1.2} />
+      <polygon points="13,-14 23,-14 18,-27" fill={roof} stroke={roofStroke} strokeWidth={1.2} />
+      {/* central keep */}
+      <rect x={-9} y={-22} width={18} height={34} fill={wall} stroke={wallStroke} strokeWidth={1.4} />
+      <polygon points="-10,-22 10,-22 0,-42" fill={roof} stroke={roofStroke} strokeWidth={1.4} />
+      {/* gate */}
+      <path d="M-4,12 L-4,2 A4,4 0 0 1 4,2 L4,12 Z" fill="#64748b" />
+      {/* flag */}
+      <line x1={0} y1={-42} x2={0} y2={-49} stroke="#334155" strokeWidth={1.1} />
+      <polygon points="0,-49 8,-46 0,-43" fill="#ec4899" />
+    </g>
+  );
+}
+
+/** Spaceship Earth — a geodesic sphere with a few facet lines. */
+function SphereGlyph({ x, y, s }: { x: number; y: number; s: number }) {
+  const r = 16;
+  return (
+    <g transform={`translate(${x} ${y}) scale(${s})`}>
+      <circle cx={0} cy={0} r={r} fill="#cbd5e1" stroke="#64748b" strokeWidth={1.4} />
+      <g stroke="#94a3b8" strokeWidth={0.8} fill="none">
+        <circle cx={0} cy={0} r={r * 0.6} />
+        <polygon points="0,-16 14,-8 14,8 0,16 -14,8 -14,-8" />
+        <line x1={0} y1={-16} x2={0} y2={16} />
+        <line x1={-14} y1={-8} x2={14} y2={8} />
+        <line x1={14} y1={-8} x2={-14} y2={8} />
+      </g>
+    </g>
   );
 }
 
