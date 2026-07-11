@@ -26,6 +26,7 @@ import type {
   WaitMode,
 } from '../lib/types';
 import { fetchLiveWaits } from '../lib/waitTimes';
+import { fetchForecast, type DayWeather } from '../lib/weather';
 import { createSyncProvider, type SyncProvider } from './sync';
 
 const COLORS = [
@@ -321,6 +322,9 @@ interface StoreState {
   meId: string | null;
   live: LiveWaits;
   liveStatus: 'idle' | 'loading' | 'ok' | 'unavailable';
+  /** Live Orlando forecast keyed by ISO date (ephemeral, not synced). */
+  weather: Record<string, DayWeather>;
+  weatherStatus: 'idle' | 'loading' | 'ok' | 'unavailable';
   ready: boolean;
   /** Attraction id whose detail page is open (ephemeral UI state, not synced). */
   detailId: string | null;
@@ -444,6 +448,7 @@ interface StoreState {
   toggleCompleted: (attractionId: string) => void;
 
   refreshLive: () => Promise<void>;
+  refreshWeather: () => Promise<void>;
 }
 
 const provider: SyncProvider = createSyncProvider();
@@ -483,6 +488,8 @@ export const useStore = create<StoreState>((set, get) => {
     meId: null,
     live: {},
     liveStatus: 'idle',
+    weather: {},
+    weatherStatus: 'idle',
     ready: false,
     detailId: null,
 
@@ -523,6 +530,7 @@ export const useStore = create<StoreState>((set, get) => {
 
       provider.subscribe((d) => set({ doc: migrate(d) }));
       void get().refreshLive();
+      void get().refreshWeather();
     },
 
     join(name) {
@@ -1405,6 +1413,13 @@ export const useStore = create<StoreState>((set, get) => {
       const live = await fetchLiveWaits();
       const ok = Object.keys(live).length > 0;
       set({ live, liveStatus: ok ? 'ok' : 'unavailable' });
+    },
+
+    async refreshWeather() {
+      set({ weatherStatus: 'loading' });
+      const weather = await fetchForecast();
+      const ok = Object.keys(weather).length > 0;
+      set({ weather, weatherStatus: ok ? 'ok' : 'unavailable' });
     },
   };
 });
