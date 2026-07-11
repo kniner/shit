@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ITEMS_BY_ID, itemsForDay } from '../data';
 import { amenitiesForPark, type AmenityType } from '../data/amenities';
 import { PARK_PATHS } from '../data/mapPaths';
+import { PARK_WATER } from '../data/mapFeatures';
+import { RIDE_WARNINGS } from '../data/rideInfo';
 import { TOT_PATH, TOT_STATIONS } from '../data/trickOrTreat';
 import { summarizeTags, TAG_META } from '../lib/tags';
 import type { Attraction, ParkId } from '../lib/types';
@@ -18,6 +20,9 @@ const AMENITY_GLYPH: Record<AmenityType, string> = {
   landmark: '🏰',
   kids: '🧸',
   break: '🧊',
+  firstaid: '⛑️',
+  locker: '🔒',
+  dining: '🍽️',
 };
 const AMENITY_LABEL: Record<AmenityType, string> = {
   restroom: 'Restroom',
@@ -27,11 +32,17 @@ const AMENITY_LABEL: Record<AmenityType, string> = {
   landmark: 'Landmark',
   kids: 'Kids interactive',
   break: 'Indoor break',
+  firstaid: 'First aid',
+  locker: 'Lockers',
+  dining: 'Table-service dining',
 };
 /** Layers the user can toggle (landmarks are always shown). */
 const AMENITY_TOGGLES: { type: AmenityType; label: string }[] = [
   { type: 'restroom', label: '🚻 Restrooms' },
   { type: 'water', label: '🚰 Water' },
+  { type: 'firstaid', label: '⛑️ First aid' },
+  { type: 'locker', label: '🔒 Lockers' },
+  { type: 'dining', label: '🍽️ Dining' },
   { type: 'photopass', label: '📷 PhotoPass' },
   { type: 'photospot', label: '✨ Photo spots' },
   { type: 'kids', label: '🧸 Kids' },
@@ -101,6 +112,7 @@ export function ParkMap() {
   const liveStatus = useStore((s) => s.liveStatus);
   const refreshLive = useStore((s) => s.refreshLive);
   const [showWaits, setShowWaits] = useState(false);
+  const [labelsOn, setLabelsOn] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [amenityInfo, setAmenityInfo] = useState<string | null>(null);
   const [layers, setLayers] = useState<Record<AmenityType, boolean>>({
@@ -111,6 +123,9 @@ export function ParkMap() {
     landmark: true,
     kids: false,
     break: false,
+    firstaid: false,
+    locker: false,
+    dining: false,
   });
 
   const items = useMemo(() => itemsForDay(day.park, day.event), [day.park, day.event]);
@@ -166,17 +181,18 @@ export function ParkMap() {
   }, [day.park, items]);
 
   const routePoints = useMemo(() => {
-    const pts: { x: number; y: number; n: number }[] = [];
+    const pts: { x: number; y: number; n: number; id: string }[] = [];
     let n = 0;
     for (const s of day.stops) {
       if (s.kind === 'custom' || s.kind === 'split' || !s.attractionId) continue;
       const a = ITEMS_BY_ID[s.attractionId];
       if (!a) continue;
       n += 1;
-      pts.push({ x: a.coords.x, y: a.coords.y, n });
+      pts.push({ x: a.coords.x, y: a.coords.y, n, id: a.id });
     }
     return pts;
   }, [day.stops]);
+  const routeIds = useMemo(() => new Set(routePoints.map((p) => p.id)), [routePoints]);
 
   if (items.length === 0) return null;
 
@@ -282,6 +298,15 @@ export function ParkMap() {
           <label className="flex items-center gap-1">
             <input
               type="checkbox"
+              checked={labelsOn}
+              onChange={(e) => setLabelsOn(e.target.checked)}
+              className="h-3 w-3 accent-slate-700"
+            />
+            🏷 Labels
+          </label>
+          <label className="flex items-center gap-1">
+            <input
+              type="checkbox"
               checked={showWaits}
               onChange={(e) => {
                 setShowWaits(e.target.checked);
@@ -343,6 +368,42 @@ export function ParkMap() {
               </text>
             </g>
           ))}
+
+          {/* Water features (moat / rivers / lagoon) */}
+          {(PARK_WATER[day.park] ?? []).map((w, i) => {
+            if (w.kind === 'ring') {
+              return (
+                <circle
+                  key={`water-${i}`}
+                  cx={w.cx}
+                  cy={w.cy}
+                  r={w.r}
+                  fill="none"
+                  stroke="#7dd3fc"
+                  strokeWidth={5 * s}
+                  opacity={0.8}
+                  pointerEvents="none"
+                />
+              );
+            }
+            if (w.kind === 'circle') {
+              return (
+                <g key={`water-${i}`} pointerEvents="none">
+                  <circle cx={w.cx} cy={w.cy} r={w.r} fill="#bae6fd" opacity={0.6} />
+                  {w.label && (
+                    <text x={w.cx} y={w.cy} dy="0.35em" textAnchor="middle" fontSize={11 * s} fill="#0369a1" opacity={0.7} fontStyle="italic">
+                      {w.label}
+                    </text>
+                  )}
+                </g>
+              );
+            }
+            return (
+              <g key={`water-${i}`} pointerEvents="none">
+                <polygon points={w.points.map((pt) => `${pt.x},${pt.y}`).join(' ')} fill="#bae6fd" opacity={0.6} />
+              </g>
+            );
+          })}
 
           {/* Walking paths */}
           {paths.map((p, i) => (
@@ -460,6 +521,34 @@ export function ParkMap() {
             );
           })}
 
+          {/* Attraction name labels. To avoid clutter at low zoom we only label
+              the ones that matter (tagged / in your route / selected) until you
+              zoom in past 2× or flip the Labels toggle on. */}
+          {items.map((it) => {
+            const consensus = summarizeTags(it.id, tags, collaborators, meId).consensus;
+            const isSel = it.id === selectedId;
+            const show = labelsOn || zoom >= 2 || isSel || !!consensus || routeIds.has(it.id);
+            if (!show) return null;
+            return (
+              <text
+                key={`lbl-${it.id}`}
+                x={it.coords.x}
+                y={it.coords.y + 12 * s}
+                textAnchor="middle"
+                fontSize={8.5 * s}
+                fontWeight={isSel || consensus ? 700 : 500}
+                fill="#0f172a"
+                stroke="#ffffff"
+                strokeWidth={2.5 * s}
+                paintOrder="stroke"
+                strokeLinejoin="round"
+                pointerEvents="none"
+              >
+                {it.name}
+              </text>
+            );
+          })}
+
           {/* Toggleable amenity markers */}
           {amenities
             .filter((a) => a.type !== 'landmark' && layers[a.type])
@@ -533,27 +622,58 @@ export function ParkMap() {
       </div>
 
       {selected ? (
-        <p className="text-[11px] text-slate-600">
-          <strong>{selected.name}</strong> · {selected.land} · {TYPE_LABEL[typeCat(selected.kind)]}
-          {(() => {
-            const lw = live[selected.id];
-            if (!lw) return null;
-            return (
-              <span style={{ color: lw.isOpen ? waitColor(lw.wait) : undefined }} className="ml-1 font-semibold">
-                {' '}· {lw.isOpen ? `${lw.wait} min now` : 'closed'}
-              </span>
-            );
-          })()}
-          {selected.description && (
-            <span className="mt-0.5 block text-slate-500">{selected.description}</span>
-          )}
-        </p>
+        (() => {
+          const lw = live[selected.id];
+          const warn = RIDE_WARNINGS[selected.id];
+          const consensus = summarizeTags(selected.id, tags, collaborators, meId).consensus;
+          const chip = 'rounded bg-slate-100 px-1.5 py-0.5 text-slate-600';
+          return (
+            <div className="space-y-1 text-[11px] text-slate-600">
+              <p>
+                <strong>{selected.name}</strong> · {selected.land} ·{' '}
+                {TYPE_LABEL[typeCat(selected.kind)]}
+                {consensus && (
+                  <span className="ml-1 font-semibold" style={{ color: TAG_META[consensus].color }}>
+                    · {TAG_META[consensus].short}
+                  </span>
+                )}
+              </p>
+              <div className="flex flex-wrap gap-1 text-[10px]">
+                {lw && (
+                  <span
+                    className="rounded px-1.5 py-0.5 font-semibold text-white"
+                    style={{ background: lw.isOpen ? waitColor(lw.wait) : '#94a3b8' }}
+                  >
+                    {lw.isOpen ? `${lw.wait} min now` : 'closed'}
+                  </span>
+                )}
+                {selected.avgWait > 0 && <span className={chip}>typically ~{selected.avgWait}m</span>}
+                {selected.duration > 0 && <span className={chip}>lasts {selected.duration}m</span>}
+                {warn?.heightMin && <span className={chip}>📏 {warn.heightMin}″ min</span>}
+                {warn?.motion && <span className={chip}>🌀 motion</span>}
+                {warn?.bigTall && <span className={chip}>📐 fit</span>}
+              </div>
+              {selected.description && <p className="text-slate-500">{selected.description}</p>}
+              {selected.url && (
+                <a
+                  href={selected.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-block font-semibold text-indigo-600 hover:underline"
+                >
+                  View menu ↗
+                </a>
+              )}
+            </div>
+          );
+        })()
       ) : amenityInfo ? (
         <p className="text-[11px] text-slate-600">{amenityInfo}</p>
       ) : (
         <p className="text-[10px] text-slate-400">
-          Tap a marker for details · drag to pan · +/− to zoom. Schematic layout;
-          white lines are walkways, dashed line is your route.
+          Tap a marker for details · drag to pan · +/− to zoom (names appear as you
+          zoom in, or flip on 🏷 Labels). Schematic layout; white lines are walkways,
+          blue is water, dashed line is your route.
         </p>
       )}
     </section>
