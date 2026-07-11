@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ITEMS_BY_ID, itemsForDay } from '../data';
 import { amenitiesForPark, type AmenityType } from '../data/amenities';
 import { PARK_PATHS } from '../data/mapPaths';
-import { PARK_WATER } from '../data/mapFeatures';
+import { PARK_TREES, PARK_WATER } from '../data/mapFeatures';
 import { RIDE_WARNINGS } from '../data/rideInfo';
 import { TOT_PATH, TOT_STATIONS } from '../data/trickOrTreat';
+import { centroid, regionPath } from '../lib/mapGeom';
 import { summarizeTags, TAG_META } from '../lib/tags';
 import type { Attraction, ParkId } from '../lib/types';
 import { useActiveDay, useStore } from '../store/useStore';
@@ -160,22 +161,18 @@ export function ParkMap() {
   }, [day.park]);
 
   const zones = useMemo(() => {
-    const P = 24;
     return (ZONES[day.park] ?? [])
       .map((z) => {
-        const pts = items.filter((i) => z.match(i.land));
+        const pts = items.filter((i) => z.match(i.land)).map((i) => i.coords);
         if (pts.length === 0) return null;
-        const xs = pts.map((p) => p.coords.x);
-        const ys = pts.map((p) => p.coords.y);
-        const minX = Math.min(...xs);
-        const minY = Math.min(...ys);
+        const c = centroid(pts);
+        const minY = Math.min(...pts.map((p) => p.y));
         return {
           label: z.label,
           color: z.color,
-          x: minX - P,
-          y: minY - P,
-          w: Math.max(...xs) - minX + P * 2,
-          h: Math.max(...ys) - minY + P * 2,
+          path: regionPath(pts, 18),
+          lx: c.x,
+          ly: minY - 22, // label rides just above the land
         };
       })
       .filter((z): z is NonNullable<typeof z> => z !== null);
@@ -359,6 +356,27 @@ export function ParkMap() {
           onPointerCancel={onPointerUp}
           onWheel={onWheel}
         >
+          <defs>
+            <linearGradient id="grass" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#e9f9ee" />
+              <stop offset="100%" stopColor="#d6f0dd" />
+            </linearGradient>
+            <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#bfe6fb" />
+              <stop offset="100%" stopColor="#8fd0f5" />
+            </linearGradient>
+            <radialGradient id="landSheen" cx="0.5" cy="0.3" r="0.8">
+              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+            </radialGradient>
+            <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+              <feDropShadow dx="0" dy="1.2" stdDeviation="1.2" floodColor="#0f172a" floodOpacity="0.35" />
+            </filter>
+            <filter id="landShadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#166534" floodOpacity="0.18" />
+            </filter>
+          </defs>
+
           {/* Parkland background — a soft green ground plane so the map reads as
               a park, not dots on white. Oversized so it always fills the view. */}
           <rect
@@ -366,17 +384,17 @@ export function ParkMap() {
             y={base.y - base.h}
             width={base.w * 3}
             height={base.h * 3}
-            fill="#eafaef"
+            fill="url(#grass)"
             pointerEvents="none"
           />
 
-          {/* Land zones */}
+          {/* Land zones — smooth organic shapes with a soft sheen & shadow.
+              Labels are drawn later, on top of everything, so they stay legible. */}
           {zones.map((z) => (
             <g key={z.label} pointerEvents="none">
-              <rect x={z.x} y={z.y} width={z.w} height={z.h} rx={16} fill={z.color} opacity={0.4} />
-              <text x={z.x + z.w / 2} y={z.y + 15 * s} textAnchor="middle" fontSize={13 * s} fontWeight={700} fill="#334155" opacity={0.75}>
-                {z.label}
-              </text>
+              <path d={z.path} fill={z.color} opacity={0.7} filter="url(#landShadow)" />
+              <path d={z.path} fill="url(#landSheen)" />
+              <path d={z.path} fill="none" stroke="#ffffff" strokeOpacity={0.7} strokeWidth={2 * s} />
             </g>
           ))}
 
@@ -391,8 +409,7 @@ export function ParkMap() {
                   r={w.r}
                   fill="none"
                   stroke="#7dd3fc"
-                  strokeWidth={5 * s}
-                  opacity={0.8}
+                  strokeWidth={6 * s}
                   pointerEvents="none"
                 />
               );
@@ -400,9 +417,9 @@ export function ParkMap() {
             if (w.kind === 'circle') {
               return (
                 <g key={`water-${i}`} pointerEvents="none">
-                  <circle cx={w.cx} cy={w.cy} r={w.r} fill="#bae6fd" opacity={0.6} />
+                  <circle cx={w.cx} cy={w.cy} r={w.r} fill="url(#water)" stroke="#7dd3fc" strokeWidth={1.5 * s} />
                   {w.label && (
-                    <text x={w.cx} y={w.cy} dy="0.35em" textAnchor="middle" fontSize={11 * s} fill="#0369a1" opacity={0.7} fontStyle="italic">
+                    <text x={w.cx} y={w.cy} dy="0.35em" textAnchor="middle" fontSize={10 * s} fill="#0369a1" opacity={0.75} fontStyle="italic">
                       {w.label}
                     </text>
                   )}
@@ -410,11 +427,26 @@ export function ParkMap() {
               );
             }
             return (
-              <g key={`water-${i}`} pointerEvents="none">
-                <polygon points={w.points.map((pt) => `${pt.x},${pt.y}`).join(' ')} fill="#bae6fd" opacity={0.6} />
-              </g>
+              <path
+                key={`water-${i}`}
+                d={regionPath(w.points, 6)}
+                fill="url(#water)"
+                stroke="#7dd3fc"
+                strokeWidth={1.5 * s}
+                pointerEvents="none"
+              />
             );
           })}
+
+          {/* Trees / landscaping */}
+          {(PARK_TREES[day.park] ?? []).map((t, i) => (
+            <g key={`tree-${i}`} pointerEvents="none">
+              <ellipse cx={t.x} cy={t.y + 3.5 * s} rx={5.5 * s} ry={2 * s} fill="#0f172a" opacity={0.12} />
+              <circle cx={t.x - 2.4 * s} cy={t.y} r={4 * s} fill="#4ea165" />
+              <circle cx={t.x + 2.4 * s} cy={t.y} r={4 * s} fill="#3f8f57" />
+              <circle cx={t.x} cy={t.y - 2.6 * s} r={4.4 * s} fill="#5cb374" />
+            </g>
+          ))}
 
           {/* Walking paths — drawn as a wider warm-grey walkway with a soft
               cream centre so they look like paved paths rather than plain lines. */}
@@ -509,13 +541,23 @@ export function ParkMap() {
                 <circle
                   cx={it.coords.x}
                   cy={it.coords.y}
-                  r={(isSel ? 9 : 7) * s}
+                  r={(isSel ? 9 : 6.5) * s}
                   fill={fill}
-                  stroke={OUTLINE[typeCat(it.kind)]}
-                  strokeWidth={(isSel ? 4 : 2) * s}
+                  stroke={isSel ? OUTLINE[typeCat(it.kind)] : '#ffffff'}
+                  strokeWidth={(isSel ? 3.5 : 2) * s}
+                  filter="url(#soft)"
                 >
                   <title>{it.name}</title>
                 </circle>
+                <circle
+                  cx={it.coords.x}
+                  cy={it.coords.y}
+                  r={(isSel ? 9 : 6.5) * s}
+                  fill="none"
+                  stroke={OUTLINE[typeCat(it.kind)]}
+                  strokeWidth={1.5 * s}
+                  pointerEvents="none"
+                />
                 {showBadge && (
                   <g pointerEvents="none">
                     <circle
@@ -624,6 +666,27 @@ export function ParkMap() {
               );
             })}
 
+          {/* Land labels (top layer so they read over shapes & markers) */}
+          {zones.map((z) => (
+            <text
+              key={`zl-${z.label}`}
+              x={z.lx}
+              y={z.ly}
+              textAnchor="middle"
+              fontSize={11 * s}
+              fontWeight={800}
+              fill="#1f2937"
+              stroke="#ffffff"
+              strokeWidth={3 * s}
+              paintOrder="stroke"
+              strokeLinejoin="round"
+              opacity={0.92}
+              pointerEvents="none"
+            >
+              {z.label}
+            </text>
+          ))}
+
           {/* Route order numbers */}
           {routePoints.map((p) => (
             <g key={`r-${p.n}`} pointerEvents="none">
@@ -725,7 +788,7 @@ function CastleGlyph({ x, y, s }: { x: number; y: number; s: number }) {
   const roof = '#3b82f6';
   const roofStroke = '#1d4ed8';
   return (
-    <g transform={`translate(${x} ${y}) scale(${s})`} strokeLinejoin="round">
+    <g transform={`translate(${x} ${y}) scale(${s})`} strokeLinejoin="round" filter="url(#soft)">
       {/* side towers */}
       <rect x={-22} y={-14} width={8} height={26} fill={wall} stroke={wallStroke} strokeWidth={1.2} />
       <polygon points="-23,-14 -13,-14 -18,-27" fill={roof} stroke={roofStroke} strokeWidth={1.2} />
@@ -747,7 +810,7 @@ function CastleGlyph({ x, y, s }: { x: number; y: number; s: number }) {
 function SphereGlyph({ x, y, s }: { x: number; y: number; s: number }) {
   const r = 16;
   return (
-    <g transform={`translate(${x} ${y}) scale(${s})`}>
+    <g transform={`translate(${x} ${y}) scale(${s})`} filter="url(#soft)">
       <circle cx={0} cy={0} r={r} fill="#cbd5e1" stroke="#64748b" strokeWidth={1.4} />
       <g stroke="#94a3b8" strokeWidth={0.8} fill="none">
         <circle cx={0} cy={0} r={r * 0.6} />

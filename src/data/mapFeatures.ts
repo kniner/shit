@@ -52,3 +52,23 @@ export const PARK_WATER: Record<ParkId, WaterFeature[]> = {
   legoland: [],
   resort: [],
 };
+
+/**
+ * Decorative tree clusters, placed in the green gaps between lands to give the
+ * map some landscaping. Purely cosmetic; positions are hand-picked to sit off
+ * the walkways and marker clusters.
+ */
+export const PARK_TREES: Record<ParkId, { x: number; y: number }[]> = {
+  mk: [
+    { x: 250, y: 405 }, { x: 350, y: 400 }, { x: 235, y: 300 }, { x: 372, y: 300 },
+    { x: 300, y: 250 }, { x: 405, y: 120 }, { x: 200, y: 118 }, { x: 95, y: 320 },
+    { x: 470, y: 230 }, { x: 130, y: 445 }, { x: 430, y: 400 }, { x: 300, y: 500 },
+  ],
+  epcot: [
+    { x: 300, y: 470 }, { x: 300, y: 175 }, { x: 235, y: 300 }, { x: 375, y: 300 },
+    { x: 120, y: 120 }, { x: 480, y: 120 }, { x: 300, y: 250 }, { x: 130, y: 400 },
+    { x: 470, y: 400 }, { x: 300, y: 620 },
+  ],
+  legoland: [],
+  resort: [],
+};
