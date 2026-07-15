@@ -85,10 +85,30 @@
     
         <div class="sub">
           <div class="sub-h">
-            <div class="t"><span class="dot s"></span>Walking pad · steps</div>
-            <div class="amt"><b id="sNow" class="num">0</b> / <span id="sTgt" class="num">8,000</span></div>
+            <div class="t"><span class="dot s"></span>Walking pad</div>
+            <div class="amt"><b id="sNow" class="num">0</b> / <span id="sTgt" class="num">8,000</span> steps</div>
           </div>
           <div class="bar s"><i id="sBar" style="width:0%"></i></div>
+          <div class="pad-row">
+            <input type="number" id="kmVal" inputmode="decimal" step="0.01" placeholder="km" aria-label="Distance in kilometers">
+            <select id="inclineSel" aria-label="Incline">
+              <option value="0">0% incline</option>
+              <option value="1">1%</option>
+              <option value="2">2%</option>
+              <option value="3">3%</option>
+              <option value="4">4%</option>
+              <option value="5">5%</option>
+              <option value="6">6%</option>
+              <option value="7">7%</option>
+              <option value="8">8%</option>
+              <option value="9">9%</option>
+              <option value="10">10%</option>
+              <option value="12">12%</option>
+              <option value="15">15%</option>
+            </select>
+            <button class="btn" id="kmAdd">Add walk</button>
+          </div>
+          <div class="pad-note" id="kmNote"></div>
           <div class="stepctl">
             <button class="chip" data-step="1000">+1,000</button>
             <button class="chip" data-step="2000">+2,000</button>
@@ -100,6 +120,12 @@
             <input type="number" id="sSetVal" inputmode="numeric" placeholder="total steps" aria-label="Set total steps">
             <button class="btn" id="sSetSave">Set</button>
             <button class="mini" id="sSetCancel">cancel</button>
+          </div>
+          <div class="gait-line" id="gaitLine"></div>
+          <div class="inline hide" id="gaitRow">
+            <input type="number" id="gaitVal" inputmode="numeric" placeholder="steps per km" aria-label="Steps per km">
+            <button class="btn" id="gaitSave">Save</button>
+            <button class="mini" id="gaitCancel">cancel</button>
           </div>
         </div>
     
