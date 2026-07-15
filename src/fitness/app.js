@@ -12,39 +12,39 @@ import { createFitnessSync } from './sync';
 
   // muscle: legs|push|pull|full|none ; kind: strength|conditioning|cardio|recovery
   var MENU=[
-    {id:"legs", name:"Legs & Glutes", sub:"Squat · hinge · lunge", muscle:"legs", kind:"strength", items:[
+    {id:"legs", name:"Legs & Glutes", sub:"Squat · hinge · lunge", muscle:"legs", kind:"strength", met:5, min:40, items:[
       {n:"Goblet or back squat — 3×8–10", d:"Hold one dumbbell vertically against your chest (a “goblet”), or rest a barbell across your upper back. Feet shoulder-width, toes turned slightly out. Sit your hips down and back like lowering into a chair until your thighs are about parallel to the floor, chest tall, then drive through your heels to stand. Do 10 reps, rest ~90 seconds, repeat for 3 sets."},
       {n:"Romanian deadlift — 3×10", d:"Hold dumbbells or a barbell in front of your thighs. With just a soft bend in your knees, push your hips straight back and let the weight slide down your shins — keep your back flat. You'll feel a stretch in the back of your thighs (hamstrings). Squeeze your glutes to stand tall. It's a hip hinge, not a squat. 3 sets of 10."},
       {n:"DB walking lunge — 3×10 / leg", d:"A dumbbell in each hand. Step forward and lower until both knees are bent about 90°, back knee near the floor, front knee over your ankle. Push off and step the back foot through into the next lunge, “walking” forward. 10 steps per leg. No space? Step backward into a reverse lunge in place instead."},
       {n:"Rower finisher — 5 min", d:"End on the rowing machine for a steady 5 minutes at a moderate effort — breathing hard but not all-out. Each stroke: push with your legs first, then lean back slightly, then pull the handle to your lower ribs; reverse the order on the way back."}
     ]},
-    {id:"push", name:"Push · Chest & Shoulders", sub:"Press · delts · triceps", muscle:"push", kind:"strength", items:[
+    {id:"push", name:"Push · Chest & Shoulders", sub:"Press · delts · triceps", muscle:"push", kind:"strength", met:4.5, min:35, items:[
       {n:"DB or barbell bench / floor press — 3×8–10", d:"Lying on a bench (or flat on the floor if you don't have one), press dumbbells or a barbell from chest height straight up until your arms are extended, then lower under control. On the floor your elbows stop when they touch the ground — a safe, shoulder-friendly version. 3 sets of 8–10."},
       {n:"Overhead press — 3×8", d:"Standing, hold dumbbells or a barbell at shoulder height. Tighten your core and press the weight straight overhead until your arms lock out, then lower back to your shoulders. Don't arch your lower back — squeeze your glutes to stay tall. 3 sets of 8."},
       {n:"Lateral raise — 3×12", d:"A light dumbbell in each hand at your sides. With a slight bend in your elbows, raise your arms out to the sides like wings until they're level with your shoulders, then lower slowly. Go light and controlled — this shapes the shoulders. 3 sets of 12."}
     ]},
-    {id:"pull", name:"Pull · Back & Biceps", sub:"Row · pull · curl", muscle:"pull", kind:"strength", items:[
+    {id:"pull", name:"Pull · Back & Biceps", sub:"Row · pull · curl", muscle:"pull", kind:"strength", met:4.5, min:35, items:[
       {n:"Bent-over barbell row — 3×8", d:"Hold a barbell with hands just outside your legs. Hinge at your hips until your torso is about 45°, back flat. Pull the bar up to your belly button, squeezing your shoulder blades together, then lower under control. 3 sets of 8. Dumbbells work fine too."},
       {n:"DB row — 3×10 / arm", d:"Put one hand and the same-side knee on a bench (or hand on a sturdy chair), other foot on the floor, a dumbbell hanging in your free hand. Pull it up toward your side like starting a lawnmower, keeping your elbow close to your body, then lower. 10 per arm."},
       {n:"DB curl — 3×12", d:"A dumbbell in each hand at your sides, palms facing forward. Bend at the elbows to curl the weights up toward your shoulders, keeping your elbows pinned to your sides, then lower slowly. 3 sets of 12."}
     ]},
-    {id:"full", name:"Full Body", sub:"One of everything", muscle:"full", kind:"strength", items:[
+    {id:"full", name:"Full Body", sub:"One of everything", muscle:"full", kind:"strength", met:5, min:40, items:[
       {n:"Goblet squat — 3×10", d:"Hold one dumbbell vertically against your chest. Feet shoulder-width, sit your hips down and back until your thighs are about parallel, chest tall, then stand up through your heels. 3 sets of 10."},
       {n:"DB bench / floor press — 3×10", d:"On a bench or flat on the floor, press dumbbells from chest height up to locked-out arms, then lower under control. On the floor your elbows rest on the ground each rep. 3 sets of 10."},
       {n:"DB row — 3×10 / arm", d:"One hand and knee on a bench or chair, a dumbbell in the free hand. Pull it up to your side, elbow close to your body, then lower. 10 per arm — this works your back and biceps."},
       {n:"Romanian deadlift — 3×10", d:"Weight in front of your thighs, soft knees. Push your hips straight back, letting the weight lower down your shins with a flat back until you feel a hamstring stretch, then squeeze your glutes to stand. A hip hinge, not a squat. 3 sets of 10."}
     ]},
-    {id:"bag", name:"Heavy Bag Conditioning", sub:"Cardio + stress relief", muscle:"none", kind:"conditioning", items:[
+    {id:"bag", name:"Heavy Bag Conditioning", sub:"Cardio + stress relief", muscle:"none", kind:"conditioning", met:7.5, min:30, items:[
       {n:"Shadow warm-up — 2 rounds", d:"“Shadowboxing” means throwing punches at the air — no bag — to warm up. Stay light on your feet and throw easy jabs, crosses and hooks to raise your heart rate and loosen your shoulders. Do 2 rounds. A “round” is a timed block of work, like in boxing — here, about 2–3 minutes of movement with ~1 minute of rest between rounds."},
       {n:"Heavy bag — 6×2 min rounds", d:"Six rounds on the heavy bag. Each round is 2 minutes of throwing combinations (jab-cross, hooks) with about 1 minute of rest between — so 6 rounds is roughly 18 minutes total. Keep your hands up by your face, breathe out sharply on each punch, and pace yourself so you can last all six."},
       {n:"Core finisher — 5 min", d:"Five minutes of core work to finish. Pick 2–3 moves — planks, dead bugs, or bicycle crunches — and rotate through them for the 5 minutes."}
     ]},
-    {id:"cardio", name:"Steady Cardio", sub:"Rower or elliptical, easy", muscle:"none", kind:"cardio", items:[
+    {id:"cardio", name:"Steady Cardio", sub:"Rower or elliptical, easy", muscle:"none", kind:"cardio", met:6, min:35, items:[
       {n:"Rower or elliptical — 25–40 min", d:"A steady 25–40 minutes on the rower or elliptical at an easy, sustainable pace. The win here is time and consistency, not speed — settle into a rhythm you could keep up."},
       {n:"Zone 2 · conversational pace", d:"“Zone 2” is easy-effort cardio: you're working, but you could still talk in full sentences. If you're gasping for breath, slow down. This gentle pace burns fat and builds your aerobic base without wearing you out — ideal on a GLP-1 when energy can run low."},
       {n:"Cool-down walk — 5 min", d:"Finish with 5 easy minutes on the walking pad to bring your heart rate back down gradually."}
     ]},
-    {id:"yoga", name:"Somatic Yoga & Mobility", sub:"Recovery & downregulate", muscle:"none", kind:"recovery", items:[
+    {id:"yoga", name:"Somatic Yoga & Mobility", sub:"Recovery & downregulate", muscle:"none", kind:"recovery", met:2.8, min:30, items:[
       {n:"Guided somatic yoga — 20–30 min", d:"Somatic yoga is slow, gentle movement focused on how your body feels — releasing tension rather than stretching hard or building strength. Follow a guided 20–30 minute session from an app or video. It's for recovery and calming your nervous system after a stressful day."},
       {n:"Easy walking pad — 15 min", d:"Fifteen relaxed minutes on the walking pad at recovery pace — just keeping the body gently moving, no effort target."}
     ]}
@@ -227,6 +227,16 @@ import { createFitnessSync } from './sync';
   function weekKcal(back){var m=mondayOf(TODAY_D);m.setDate(m.getDate()-7*(back||0));var t=0;
     for(var i=0;i<7;i++){var d=new Date(m);d.setDate(d.getDate()+i);var r=getDay(iso(d));if(r&&r.kcal)t+=r.kcal;}return Math.round(t);}
   function flatKcal(km){return Math.round(latestWeightLbs()*0.453592*km*0.5);}  // 0% incline
+  // Completed workout calories for a day: METs × kg × hours.
+  function workoutKcalForDay(k){var r=getDay(k);if(!dayDone(r)||!r.pick)return 0;var o=optById(r.pick);
+    if(!o||!o.met)return 0;return Math.round(latestWeightLbs()*0.453592*o.met*(o.min/60));}
+  function renderActivity(){
+    var el=document.getElementById("activityLine");if(!el)return;
+    var r=dayRec(),walk=r.kcal||0,wo=workoutKcalForDay(today),total=walk+wo;
+    el.innerHTML=total>0
+      ? "Today’s activity ≈ <b>"+fmt(total)+"</b> kcal · "+fmt(walk)+" walking + "+fmt(wo)+" workout"
+      : "Today’s activity ≈ <b>0</b> kcal — log a walk or check off a workout.";
+  }
   function renderSteps(){
     var r=dayRec();
     document.getElementById("sNow").textContent=fmt(r.steps);
@@ -241,11 +251,13 @@ import { createFitnessSync } from './sync';
     document.getElementById("kmWeekNote").innerHTML="Last week: <b>"+weekKm(1)+"</b> km";
     // calorie comparison: actual vs flat
     var kcalWk=weekKcal(0),flatSame=flatKcal(wk),bonus=Math.max(0,kcalWk-flatSame),flatGoal=flatKcal(state.kmTarget);
+    var pct=flatSame>0?Math.round(bonus/flatSame*100):0;
     document.getElementById("kmCalNote").innerHTML=kcalWk>0
       ? "Burned this week: ~<b>"+fmt(kcalWk)+"</b> kcal over "+round2(wk)+" km<br>"+
-        "· same distance flat ≈ "+fmt(flatSame)+" kcal — <b>incline earned +"+fmt(bonus)+"</b><br>"+
+        "· same distance flat ≈ "+fmt(flatSame)+" kcal — <b>incline earned +"+fmt(bonus)+" (+"+pct+"%)</b><br>"+
         "· walking the "+state.kmTarget+" km goal flat ≈ "+fmt(flatGoal)+" kcal"
       : "Walking the "+state.kmTarget+" km goal flat would burn ≈ <b>"+fmt(flatGoal)+"</b> kcal.";
+    renderActivity();
     var g=document.getElementById("gaitLine");
     g.innerHTML="≈ <b>"+fmt(state.stepsPerKm)+"</b> steps/km · tuned to a 5′3″ gait · <button class=\"mini\" id=\"gaitEdit\">change</button>";
     document.getElementById("gaitEdit").addEventListener("click",function(){var el=document.getElementById("gaitVal");el.value=state.stepsPerKm;toggle("gaitRow",true);el.focus();});
@@ -460,7 +472,7 @@ import { createFitnessSync } from './sync';
     el.innerHTML='<div class="balance"><div class="bh">Muscle balance · past 2 weeks</div>'+
       '<div class="bgroups">'+pills+'</div><div class="bnote">'+note+'</div></div>';
   }
-  function refreshBalance(){var B=computeBalance();renderBalance(B);updateRecent();renderHistory();}
+  function refreshBalance(){var B=computeBalance();renderBalance(B);updateRecent();renderHistory();renderActivity();}
 
   // ---- WEIGHT / PROGRESSIVE OVERLOAD ----
   function movementKey(name){return name.split("—")[0].trim();}
@@ -600,7 +612,7 @@ import { createFitnessSync } from './sync';
       el.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();pick();}});
       menu.appendChild(el);
     });
-    updateRecent();renderHistory();
+    updateRecent();renderHistory();renderActivity();
   }
   function updateRecent(){
     var n=0;winKeys().forEach(function(k){if(dayDone(getDay(k)))n++;});
