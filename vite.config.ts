@@ -1,12 +1,25 @@
+import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
+
+const entry = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 // Project is deployed to GitHub Pages at https://<user>.github.io/shit/, so the
 // production build is served from the "/shit/" sub-path. Local dev stays at "/".
 // https://vitejs.dev/config/
 export default defineConfig(({ command }) => ({
   base: command === 'build' ? '/shit/' : '/',
+  build: {
+    // Multi-page: the trip planner (index.html) and the fitness companion
+    // (fitness.html) build into the same site and share the Supabase setup.
+    rollupOptions: {
+      input: {
+        main: entry('./index.html'),
+        fitness: entry('./fitness.html'),
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({
