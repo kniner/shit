@@ -118,7 +118,10 @@ import { createFitnessSync } from './sync';
     if(s.stepsPerKm==null)s.stepsPerKm=1513;  // ~0.66 m stride, calibrated to a 5'3" gait
     if(s.kmTarget==null)s.kmTarget=25;         // weekly walking-distance goal (km)
     delete s.veg;
-    for(var mk in s.days){var mr=s.days[mk];if(!mr.food)mr.food={};if(mr.veg!=null){if(mr.food.veg==null)mr.food.veg=mr.veg;delete mr.veg;}}
+    for(var mk in s.days){var mr=s.days[mk];if(!mr.food)mr.food={};if(mr.veg!=null){if(mr.food.veg==null)mr.food.veg=mr.veg;delete mr.veg;}
+      // distance logged before per-walk tracking: represent it as one entry with unknown incline
+      if(!mr.walks)mr.walks=[];
+      if(!mr.walks.length&&mr.km>0)mr.walks.push({km:mr.km,inc:null,steps:Math.round(mr.km*(s.stepsPerKm||1513)),kcal:mr.kcal||0});}
     return s;
   }
 
@@ -127,8 +130,8 @@ import { createFitnessSync } from './sync';
   normalize(state);
   if(fresh)save();
 
-  function dayRec(k){k=k||today;if(!state.days[k])state.days[k]={pLog:[],steps:0,pick:null,done:{},food:{},km:0,kcal:0};
-    var r=state.days[k];if(!r.pLog)r.pLog=[];if(!r.done)r.done={};if(r.steps==null)r.steps=0;if(!r.food)r.food={};if(r.km==null)r.km=0;if(r.kcal==null)r.kcal=0;return r;}
+  function dayRec(k){k=k||today;if(!state.days[k])state.days[k]={pLog:[],steps:0,pick:null,done:{},food:{},km:0,kcal:0,walks:[]};
+    var r=state.days[k];if(!r.pLog)r.pLog=[];if(!r.done)r.done={};if(r.steps==null)r.steps=0;if(!r.food)r.food={};if(r.km==null)r.km=0;if(r.kcal==null)r.kcal=0;if(!r.walks)r.walks=[];return r;}
   function curWeight(){var w=state.weights;return w.length?w[w.length-1].lbs:START;}
   function optById(id){for(var i=0;i<MENU.length;i++)if(MENU[i].id===id)return MENU[i];return null;}
 
@@ -246,6 +249,16 @@ import { createFitnessSync } from './sync';
     document.getElementById("sTgt").textContent=fmt(state.sTarget);
     document.getElementById("sBar").style.width=Math.min(100,r.steps/state.sTarget*100)+"%";
     document.getElementById("kmNote").innerHTML=r.km>0?("Pad today: <b>"+round2(r.km)+" km</b> · ~<b>"+fmt(dayWalkKcal(r))+" kcal</b>"):"";
+    // today's individual walks (removable)
+    var wl=document.getElementById("walkList");
+    if(r.walks&&r.walks.length){
+      wl.innerHTML=r.walks.map(function(w,i){
+        var kc=w.kcal>0?w.kcal:flatKcal(w.km),inc=(w.inc==null)?"incline n/a":(w.inc+"% incline");
+        return '<div class="walk"><span>'+round2(w.km)+' km · '+inc+' · '+fmt(w.steps)+' steps · ~'+fmt(kc)+' kcal</span>'+
+          '<button class="walk-x" data-i="'+i+'" aria-label="Remove this walk">×</button></div>';
+      }).join("");
+      Array.prototype.forEach.call(wl.querySelectorAll(".walk-x"),function(btn){btn.addEventListener("click",function(){removeWalk(parseInt(btn.dataset.i,10));});});
+    }else wl.innerHTML="";
     // weekly km goal
     var wk=weekKm(0);
     document.getElementById("kmWeek").textContent=round2(wk);
@@ -271,7 +284,7 @@ import { createFitnessSync } from './sync';
     var km=parseFloat(document.getElementById("kmVal").value),inc=parseInt(document.getElementById("inclineSel").value,10)||0;
     if(!(km>0)){document.getElementById("kmVal").focus();return;}
     var steps=kmToSteps(km,inc),kcal=kmKcal(km,inc),r=dayRec();
-    r.steps+=steps;r.km=round2(r.km+km);r.kcal+=kcal;save();
+    r.steps+=steps;r.km=round2(r.km+km);r.kcal+=kcal;r.walks.push({km:round2(km),inc:inc,steps:steps,kcal:kcal});save();
     document.getElementById("kmVal").value="";renderSteps();
     document.getElementById("kmNote").innerHTML="Added <b>"+fmt(steps)+"</b> steps · ~<b>"+fmt(kcal)+" kcal</b> — "+round2(km)+" km @ "+inc+"%. Pad today: <b>"+round2(r.km)+" km</b> · ~<b>"+fmt(r.kcal)+" kcal</b>";
   });
@@ -281,7 +294,10 @@ import { createFitnessSync } from './sync';
   function saveSteps(){var v=parseInt(document.getElementById("sSetVal").value,10);if(v>=0){dayRec().steps=v;save();renderSteps();}toggle("sSetRow",false);}
   document.getElementById("sSetSave").addEventListener("click",saveSteps);
   document.getElementById("sSetVal").addEventListener("keydown",function(e){if(e.key==="Enter")saveSteps();});
-  document.getElementById("sReset").addEventListener("click",function(){var r=dayRec();r.steps=0;r.km=0;r.kcal=0;save();renderSteps();});
+  document.getElementById("sReset").addEventListener("click",function(){var r=dayRec();r.steps=0;r.km=0;r.kcal=0;r.walks=[];save();renderSteps();});
+  function removeWalk(i){var r=dayRec();if(!r.walks||i<0||i>=r.walks.length)return;var w=r.walks[i];
+    r.steps=Math.max(0,r.steps-(w.steps||0));r.km=round2(Math.max(0,r.km-(w.km||0)));r.kcal=Math.max(0,r.kcal-(w.kcal||0));
+    r.walks.splice(i,1);save();renderSteps();}
   // Gait (steps per km) — personal calibration.
   document.getElementById("gaitCancel").addEventListener("click",function(){toggle("gaitRow",false);});
   function saveGait(){var v=parseInt(document.getElementById("gaitVal").value,10);if(v>0){state.stepsPerKm=v;save();renderSteps();}toggle("gaitRow",false);}
