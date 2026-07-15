@@ -5,6 +5,16 @@ A collaborative web app for planning multiple days across **Magic Kingdom** and
 attractions, build a route, and get a realistic time estimate for each day —
 together.
 
+## Also included: Reforge fitness companion
+
+A separate private page at **`/fitness.html`** — a GLP-1 progress companion
+(weight trend, protein & food-group goals, cycle-aware suggestions, a workout
+menu with per-lift weight tracking and progression). It persists and syncs
+across devices using the **same Supabase project** as the planner — see the
+"Fitness companion" section of [`SUPABASE_SETUP.md`](./SUPABASE_SETUP.md) for the
+one table and `VITE_FITNESS_ID` env var it needs. Without Supabase keys it runs
+local-only, like the planner.
+
 ## How it works
 
 The app has two pages:

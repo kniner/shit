@@ -27,6 +27,8 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_TRIP_ID: ${{ secrets.VITE_TRIP_ID }}
+          # Fitness companion (fitness.html): personal code so your devices share one log.
+          VITE_FITNESS_ID: ${{ secrets.VITE_FITNESS_ID }}
 
       - name: Publish to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4

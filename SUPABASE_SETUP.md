@@ -94,3 +94,51 @@ design), so effectively anyone with the link can edit. That's fine for a family
 trip; just don't post the link publicly. Using a non-obvious `VITE_TRIP_ID` adds
 a little obscurity. If you ever want real accounts/permissions, that's a larger
 add with Supabase Auth.
+
+---
+
+## Fitness companion (fitness.html)
+
+The site also includes a private GLP-1 progress companion at **`/fitness.html`**
+(weight, protein, food goals, cycle, workouts, and lift tracking). It saves and
+syncs across your devices using the **same Supabase project** as the planner —
+you just need one more table and one env var.
+
+### 1. Create the fitness table
+
+**SQL Editor → New query**, paste, **Run**:
+
+```sql
+create table if not exists public.fitness (
+  id text primary key,
+  doc jsonb not null,
+  updated_at timestamptz default now()
+);
+
+alter table public.fitness enable row level security;
+
+create policy "anyone can read"   on public.fitness for select using (true);
+create policy "anyone can insert" on public.fitness for insert with check (true);
+create policy "anyone can update" on public.fitness for update using (true) with check (true);
+
+-- Stream changes to every connected device.
+alter publication supabase_realtime add table public.fitness;
+```
+
+### 2. Set your personal code
+
+Add one more value alongside the Supabase keys — locally in `.env.local` and as
+a GitHub repo secret named `VITE_FITNESS_ID` for the deployed site:
+
+```
+VITE_FITNESS_ID=pick-a-hard-to-guess-code
+```
+
+Every device that builds with the same `VITE_FITNESS_ID` shares one private log.
+Without the Supabase keys the companion runs local-only (this browser), exactly
+like the planner.
+
+> Same security model as the planner: no logins, and the anon key is public, so
+> the obscurity is in your `VITE_FITNESS_ID`. This is personal health data —
+> keep the code private and don't post the fitness URL publicly. Real accounts
+> would be a larger add with Supabase Auth.
