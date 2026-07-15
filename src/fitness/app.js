@@ -224,6 +224,9 @@ import { createFitnessSync } from './sync';
   function kmKcal(km,inc){return Math.round(latestWeightLbs()*0.453592*km*(0.5+0.09*inc));}
   function weekKm(back){var m=mondayOf(TODAY_D);m.setDate(m.getDate()-7*(back||0));var t=0;
     for(var i=0;i<7;i++){var d=new Date(m);d.setDate(d.getDate()+i);var r=getDay(iso(d));if(r&&r.km)t+=r.km;}return round2(t);}
+  function weekKcal(back){var m=mondayOf(TODAY_D);m.setDate(m.getDate()-7*(back||0));var t=0;
+    for(var i=0;i<7;i++){var d=new Date(m);d.setDate(d.getDate()+i);var r=getDay(iso(d));if(r&&r.kcal)t+=r.kcal;}return Math.round(t);}
+  function flatKcal(km){return Math.round(latestWeightLbs()*0.453592*km*0.5);}  // 0% incline
   function renderSteps(){
     var r=dayRec();
     document.getElementById("sNow").textContent=fmt(r.steps);
@@ -236,6 +239,13 @@ import { createFitnessSync } from './sync';
     document.getElementById("kmTgt").textContent=state.kmTarget;
     document.getElementById("kmBar").style.width=Math.min(100,state.kmTarget?wk/state.kmTarget*100:0)+"%";
     document.getElementById("kmWeekNote").innerHTML="Last week: <b>"+weekKm(1)+"</b> km";
+    // calorie comparison: actual vs flat
+    var kcalWk=weekKcal(0),flatSame=flatKcal(wk),bonus=Math.max(0,kcalWk-flatSame),flatGoal=flatKcal(state.kmTarget);
+    document.getElementById("kmCalNote").innerHTML=kcalWk>0
+      ? "Burned this week: ~<b>"+fmt(kcalWk)+"</b> kcal over "+round2(wk)+" km<br>"+
+        "· same distance flat ≈ "+fmt(flatSame)+" kcal — <b>incline earned +"+fmt(bonus)+"</b><br>"+
+        "· walking the "+state.kmTarget+" km goal flat ≈ "+fmt(flatGoal)+" kcal"
+      : "Walking the "+state.kmTarget+" km goal flat would burn ≈ <b>"+fmt(flatGoal)+"</b> kcal.";
     var g=document.getElementById("gaitLine");
     g.innerHTML="≈ <b>"+fmt(state.stepsPerKm)+"</b> steps/km · tuned to a 5′3″ gait · <button class=\"mini\" id=\"gaitEdit\">change</button>";
     document.getElementById("gaitEdit").addEventListener("click",function(){var el=document.getElementById("gaitVal");el.value=state.stepsPerKm;toggle("gaitRow",true);el.focus();});
