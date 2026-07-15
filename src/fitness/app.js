@@ -225,14 +225,17 @@ import { createFitnessSync } from './sync';
   function weekKm(back){var m=mondayOf(TODAY_D);m.setDate(m.getDate()-7*(back||0));var t=0;
     for(var i=0;i<7;i++){var d=new Date(m);d.setDate(d.getDate()+i);var r=getDay(iso(d));if(r&&r.km)t+=r.km;}return round2(t);}
   function weekKcal(back){var m=mondayOf(TODAY_D);m.setDate(m.getDate()-7*(back||0));var t=0;
-    for(var i=0;i<7;i++){var d=new Date(m);d.setDate(d.getDate()+i);var r=getDay(iso(d));if(r&&r.kcal)t+=r.kcal;}return Math.round(t);}
+    for(var i=0;i<7;i++){var d=new Date(m);d.setDate(d.getDate()+i);t+=dayWalkKcal(getDay(iso(d)));}return Math.round(t);}
   function flatKcal(km){return Math.round(latestWeightLbs()*0.453592*km*0.5);}  // 0% incline
+  // Calories for a day's walking. Distance logged before calorie tracking has
+  // no stored kcal — fall back to a flat estimate so it never reads as 0.
+  function dayWalkKcal(r){if(!r)return 0;var floor=r.km>0?flatKcal(r.km):0;return Math.max(r.kcal||0,floor);}
   // Completed workout calories for a day: METs × kg × hours.
   function workoutKcalForDay(k){var r=getDay(k);if(!dayDone(r)||!r.pick)return 0;var o=optById(r.pick);
     if(!o||!o.met)return 0;return Math.round(latestWeightLbs()*0.453592*o.met*(o.min/60));}
   function renderActivity(){
     var el=document.getElementById("activityLine");if(!el)return;
-    var r=dayRec(),walk=r.kcal||0,wo=workoutKcalForDay(today),total=walk+wo;
+    var r=dayRec(),walk=dayWalkKcal(r),wo=workoutKcalForDay(today),total=walk+wo;
     el.innerHTML=total>0
       ? "Today’s activity ≈ <b>"+fmt(total)+"</b> kcal · "+fmt(walk)+" walking + "+fmt(wo)+" workout"
       : "Today’s activity ≈ <b>0</b> kcal — log a walk or check off a workout.";
@@ -242,7 +245,7 @@ import { createFitnessSync } from './sync';
     document.getElementById("sNow").textContent=fmt(r.steps);
     document.getElementById("sTgt").textContent=fmt(state.sTarget);
     document.getElementById("sBar").style.width=Math.min(100,r.steps/state.sTarget*100)+"%";
-    document.getElementById("kmNote").innerHTML=r.km>0?("Pad today: <b>"+round2(r.km)+" km</b> · ~<b>"+fmt(r.kcal)+" kcal</b>"):"";
+    document.getElementById("kmNote").innerHTML=r.km>0?("Pad today: <b>"+round2(r.km)+" km</b> · ~<b>"+fmt(dayWalkKcal(r))+" kcal</b>"):"";
     // weekly km goal
     var wk=weekKm(0);
     document.getElementById("kmWeek").textContent=round2(wk);
