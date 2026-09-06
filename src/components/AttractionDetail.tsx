@@ -169,7 +169,7 @@ export function AttractionDetail() {
         )}
 
         {/* Safety */}
-        {warn && (warn.heightMin || warn.motion || warn.bigTall) && (
+        {warn && (warn.heightMin || warn.pregnancy || warn.motion || warn.bigTall) && (
           <div className="mt-4">
             <h3 className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">
               Before you ride
@@ -178,6 +178,7 @@ export function AttractionDetail() {
               {warn.heightMin && (
                 <li>📏 Must be <strong>{warn.heightMin}″</strong> tall to ride</li>
               )}
+              {warn.pregnancy && <li>🤰 Not recommended for expectant mothers</li>}
               {warn.motion && <li>🌀 May cause motion sickness</li>}
               {warn.bigTall && <li>📐 May not fit larger or very tall guests (≈6′8″+)</li>}
             </ul>

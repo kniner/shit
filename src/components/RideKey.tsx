@@ -3,6 +3,7 @@ import { WARNING_KEY } from '../data/rideInfo';
 
 const ICON: Record<string, string> = {
   heightMin: '📏',
+  pregnancy: '🤰',
   motion: '🌀',
   bigTall: '📐',
 };

@@ -43,6 +43,12 @@ describe('recommendRides', () => {
     expect(ids).not.toContain('frozen-ever-after');
   });
 
+  it('pregnancy excludes advisory rides', () => {
+    const ids = idsOf({ ...DEFAULT_ANSWERS, thrill: 'thrill', pregnant: true }, 20);
+    expect(ids).not.toContain('space-mountain');
+    expect(ids).not.toContain('cosmic-rewind');
+  });
+
   it('favoring a franchise surfaces its rides', () => {
     const ids = idsOf({ ...DEFAULT_ANSWERS, thrill: 'chill', franchises: ['princess'] }, 8);
     expect(ids).toContain('little-mermaid');

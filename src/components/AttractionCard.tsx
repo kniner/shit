@@ -156,6 +156,11 @@ export function AttractionCard({ attraction, showAddToRoute = true }: Props) {
               📏 {warning.heightMin}″
             </span>
           )}
+          {warning.pregnancy && (
+            <span className="rounded bg-slate-100 px-1.5 py-0.5" title="Not recommended for expectant mothers">
+              🤰 no
+            </span>
+          )}
           {warning.motion && (
             <span className="rounded bg-slate-100 px-1.5 py-0.5" title="May cause motion sickness">
               🌀 motion
