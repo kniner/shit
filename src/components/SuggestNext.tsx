@@ -11,7 +11,9 @@ export function SuggestNext() {
   const tags = useStore((s) => s.doc.tags);
   const collaborators = useStore((s) => s.doc.collaborators);
   const meId = useStore((s) => s.meId);
+  const completed = useStore((s) => s.doc.completed);
   const addStop = useStore((s) => s.addStop);
+  const toggleCompleted = useStore((s) => s.toggleCompleted);
 
   // Default "you're at" to the last located stop in the route.
   const lastItemId = useMemo(() => {
@@ -29,8 +31,8 @@ export function SuggestNext() {
   const dayItems = useMemo(() => itemsForDay(day.park, day.event), [day.park, day.event]);
 
   const suggestions = useMemo(
-    () => suggestNext({ day, live, tags, collaborators, meId }, fromItem, 5),
-    [day, live, tags, collaborators, meId, fromItem],
+    () => suggestNext({ day, live, tags, collaborators, meId, completed }, fromItem, 5),
+    [day, live, tags, collaborators, meId, completed, fromItem],
   );
 
   return (
@@ -73,6 +75,16 @@ export function SuggestNext() {
                 <p className="text-[11px] text-slate-500">
                   {s.walk > 0 && <>walk {s.walk}m · </>}
                   wait {s.wait}m
+                  {s.vsAvg !== undefined && s.vsAvg <= -10 && (
+                    <span className="ml-1 font-semibold text-emerald-600">
+                      · {-s.vsAvg}m below typical
+                    </span>
+                  )}
+                  {s.vsAvg !== undefined && s.vsAvg >= 10 && (
+                    <span className="ml-1 font-semibold text-rose-500">
+                      · {s.vsAvg}m above typical
+                    </span>
+                  )}
                   {s.priority && (
                     <span className="ml-1 font-semibold" style={{ color: TAG_META[s.priority].color }}>
                       · {TAG_META[s.priority].short}
@@ -80,19 +92,29 @@ export function SuggestNext() {
                   )}
                 </p>
               </div>
-              <button
-                onClick={() => addStop(s.item.id)}
-                className="shrink-0 rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
-              >
-                + Add
-              </button>
+              <div className="flex shrink-0 gap-1">
+                <button
+                  onClick={() => toggleCompleted(s.item.id)}
+                  className="rounded-md border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100"
+                  title="We rode it — mark done and remove from suggestions"
+                >
+                  ✓ Rode it
+                </button>
+                <button
+                  onClick={() => addStop(s.item.id)}
+                  className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  title="Add to today's route"
+                >
+                  + Add
+                </button>
+              </div>
             </li>
           ))}
         </ul>
       )}
       <p className="text-[10px] text-slate-400">
-        Ranked by walking time, {day.settings.waitMode} wait, and how much the group
-        wants it.
+        Ranked by walking time, {day.settings.waitMode} wait, how much the group
+        wants it, and whether the line is shorter or longer than typical right now.
       </p>
     </section>
   );

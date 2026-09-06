@@ -26,6 +26,7 @@ import type {
   WaitMode,
 } from '../lib/types';
 import { fetchLiveWaits } from '../lib/waitTimes';
+import { fetchForecast, type DayWeather } from '../lib/weather';
 import { createSyncProvider, type SyncProvider } from './sync';
 
 const COLORS = [
@@ -75,6 +76,16 @@ function resolveOwnerId(
 /** Case-insensitive, whitespace-normalized key for matching names. */
 function nameKey(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+/**
+ * Pull a bare Venmo username out of whatever the user pasted — a full profile
+ * URL (venmo.com/u/handle), an @mention, or just the handle. Returns undefined
+ * if nothing usable is found (which clears the field).
+ */
+function normalizeVenmo(raw: string): string | undefined {
+  const m = raw.trim().match(/(?:venmo\.com\/(?:u\/)?)?@?([A-Za-z0-9_-]{1,30})\/?$/i);
+  return m ? m[1] : undefined;
 }
 
 function loadLegacyChecked(): string[] {
@@ -160,6 +171,7 @@ function emptyDoc(): PlanDoc {
     bookingDone: [],
     bookingCustom: [],
     organizerNotes: '',
+    completed: [],
   };
 }
 
@@ -301,6 +313,7 @@ function migrate(raw: unknown): PlanDoc {
     bookingDone: Array.isArray(doc.bookingDone) ? doc.bookingDone : [],
     bookingCustom: Array.isArray(doc.bookingCustom) ? doc.bookingCustom : [],
     organizerNotes: typeof doc.organizerNotes === 'string' ? doc.organizerNotes : '',
+    completed: Array.isArray(doc.completed) ? doc.completed.filter((x) => typeof x === 'string') : [],
   };
 }
 
@@ -309,14 +322,24 @@ interface StoreState {
   meId: string | null;
   live: LiveWaits;
   liveStatus: 'idle' | 'loading' | 'ok' | 'unavailable';
+  /** Live Orlando forecast keyed by ISO date (ephemeral, not synced). */
+  weather: Record<string, DayWeather>;
+  weatherStatus: 'idle' | 'loading' | 'ok' | 'unavailable';
   ready: boolean;
+  /** Attraction id whose detail page is open (ephemeral UI state, not synced). */
+  detailId: string | null;
 
   init: () => Promise<void>;
+  /** Open / close the full ride-detail overlay. */
+  openDetail: (attractionId: string) => void;
+  closeDetail: () => void;
   join: (name: string) => void;
   leave: () => void;
   /** Dismiss the first-run checklist for the current account (synced). */
   dismissOnboarding: () => void;
   removeCollaborator: (userId: string) => void;
+  /** Set (or clear) the current user's own Venmo handle for settle-up links. */
+  setVenmo: (handle: string) => void;
 
   // Days
   setActiveDay: (dayId: string) => void;
@@ -421,7 +444,11 @@ interface StoreState {
   removeBookingTask: (id: string) => void;
   setOrganizerNotes: (notes: string) => void;
 
+  /** Mark an attraction done / not-done for the whole party (trip-wide). */
+  toggleCompleted: (attractionId: string) => void;
+
   refreshLive: () => Promise<void>;
+  refreshWeather: () => Promise<void>;
 }
 
 const provider: SyncProvider = createSyncProvider();
@@ -461,7 +488,17 @@ export const useStore = create<StoreState>((set, get) => {
     meId: null,
     live: {},
     liveStatus: 'idle',
+    weather: {},
+    weatherStatus: 'idle',
     ready: false,
+    detailId: null,
+
+    openDetail(attractionId) {
+      set({ detailId: attractionId });
+    },
+    closeDetail() {
+      set({ detailId: null });
+    },
 
     async init() {
       const remote = await provider.load();
@@ -493,6 +530,7 @@ export const useStore = create<StoreState>((set, get) => {
 
       provider.subscribe((d) => set({ doc: migrate(d) }));
       void get().refreshLive();
+      void get().refreshWeather();
     },
 
     join(name) {
@@ -531,6 +569,19 @@ export const useStore = create<StoreState>((set, get) => {
       commit({
         ...doc,
         onboardingDismissed: { ...doc.onboardingDismissed, [meId]: ONBOARDING_VERSION },
+      });
+    },
+
+    setVenmo(handle) {
+      const meId = me();
+      if (!meId) return;
+      const venmo = normalizeVenmo(handle);
+      const doc = get().doc;
+      commit({
+        ...doc,
+        collaborators: doc.collaborators.map((c) =>
+          c.id === meId ? { ...c, venmo } : c,
+        ),
       });
     },
 
@@ -1349,11 +1400,26 @@ export const useStore = create<StoreState>((set, get) => {
       commit({ ...doc, organizerNotes: notes });
     },
 
+    toggleCompleted(attractionId) {
+      const doc = get().doc;
+      const completed = doc.completed.includes(attractionId)
+        ? doc.completed.filter((x) => x !== attractionId)
+        : [...doc.completed, attractionId];
+      commit({ ...doc, completed });
+    },
+
     async refreshLive() {
       set({ liveStatus: 'loading' });
       const live = await fetchLiveWaits();
       const ok = Object.keys(live).length > 0;
       set({ live, liveStatus: ok ? 'ok' : 'unavailable' });
+    },
+
+    async refreshWeather() {
+      set({ weatherStatus: 'loading' });
+      const weather = await fetchForecast();
+      const ok = Object.keys(weather).length > 0;
+      set({ weather, weatherStatus: ok ? 'ok' : 'unavailable' });
     },
   };
 });

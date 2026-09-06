@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { AttractionDetail } from './components/AttractionDetail';
 import { FirstRunChecklist } from './components/FirstRunChecklist';
 import { JoinGate } from './components/JoinGate';
 import { ListsView } from './components/ListsView';
@@ -35,16 +36,13 @@ export default function App() {
   // device falls back to the join screen rather than acting as a ghost user.
   const joined = meId != null && collaborators.some((c) => c.id === meId);
 
-  // The schedule owner (explicitly claimed, else the trip's first member) is the
-  // only one who can see the Schedule group for now.
+  // The schedule owner (explicitly claimed, else the trip's first member).
+  // Everyone can see & edit the Schedule; only the owner gets Organizer tools.
   const ownerId = useStore((s) => s.doc.ownerId) ?? collaborators[0]?.id;
   const isOwner = meId != null && ownerId === meId;
   const ownerName = collaborators.find((c) => c.id === ownerId)?.name;
   const activeGroup: Group =
-    (group === 'schedule' || group === 'organizer') && !isOwner ? 'wishlist' : group;
-  // Meals & Finances are owner-only; keep non-owners on a visible sub-tab.
-  const effectiveTripSub: TripSub =
-    !isOwner && (tripSub === 'meals' || tripSub === 'finances') ? 'lists' : tripSub;
+    group === 'organizer' && !isOwner ? 'wishlist' : group;
 
   useEffect(() => {
     void init();
@@ -95,11 +93,9 @@ export default function App() {
           <ViewTab active={activeGroup === 'wishlist'} onClick={() => setGroup('wishlist')}>
             Wishlist
           </ViewTab>
-          {isOwner && (
-            <ViewTab active={activeGroup === 'schedule'} onClick={() => setGroup('schedule')}>
-              Schedule
-            </ViewTab>
-          )}
+          <ViewTab active={activeGroup === 'schedule'} onClick={() => setGroup('schedule')}>
+            Schedule
+          </ViewTab>
           <ViewTab active={activeGroup === 'trip'} onClick={() => setGroup('trip')}>
             Trip
           </ViewTab>
@@ -110,17 +106,18 @@ export default function App() {
           )}
         </nav>
 
-        {/* Non-owners just see who owns the schedule; ownership can't be claimed. */}
+        {/* Everyone can edit the schedule together; the owner just coordinates. */}
         {!isOwner && ownerName && (
           <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">
-            Schedule owner: <span className="font-semibold text-slate-700">{ownerName}</span>
+            Trip organizer: <span className="font-semibold text-slate-700">{ownerName}</span> · the
+            schedule is shared — anyone can add or reorder stops.
           </div>
         )}
       </div>
 
       {activeGroup === 'wishlist' && <TagView />}
 
-      {activeGroup === 'schedule' && isOwner && (
+      {activeGroup === 'schedule' && (
         <div className="space-y-4">
           <SubNav>
             <SubTab active={scheduleSub === 'schedule'} onClick={() => setScheduleSub('schedule')}>
@@ -137,31 +134,23 @@ export default function App() {
       {activeGroup === 'trip' && (
         <div className="space-y-4">
           <SubNav>
-            <SubTab active={effectiveTripSub === 'info'} onClick={() => setTripSub('info')}>
+            <SubTab active={tripSub === 'info'} onClick={() => setTripSub('info')}>
               Info & dining
             </SubTab>
-            <SubTab active={effectiveTripSub === 'lists'} onClick={() => setTripSub('lists')}>
+            <SubTab active={tripSub === 'lists'} onClick={() => setTripSub('lists')}>
               Lists
             </SubTab>
-            {/* Meals & Finances are owner-only to keep it simple for everyone else. */}
-            {isOwner && (
-              <SubTab active={effectiveTripSub === 'meals'} onClick={() => setTripSub('meals')}>
-                Meals
-              </SubTab>
-            )}
-            {isOwner && (
-              <SubTab
-                active={effectiveTripSub === 'finances'}
-                onClick={() => setTripSub('finances')}
-              >
-                Finances
-              </SubTab>
-            )}
+            <SubTab active={tripSub === 'meals'} onClick={() => setTripSub('meals')}>
+              Meals
+            </SubTab>
+            <SubTab active={tripSub === 'finances'} onClick={() => setTripSub('finances')}>
+              Finances
+            </SubTab>
           </SubNav>
-          {effectiveTripSub === 'info' && <TripView />}
-          {effectiveTripSub === 'lists' && <ListsView />}
-          {effectiveTripSub === 'meals' && isOwner && <MealsView />}
-          {effectiveTripSub === 'finances' && isOwner && <FinancesView />}
+          {tripSub === 'info' && <TripView />}
+          {tripSub === 'lists' && <ListsView />}
+          {tripSub === 'meals' && <MealsView />}
+          {tripSub === 'finances' && <FinancesView />}
         </div>
       )}
 
@@ -191,6 +180,9 @@ export default function App() {
         Wait times are planning estimates; live data via queue-times.com when
         available.
       </footer>
+
+      {/* Full ride-detail overlay, opened from cards and map markers. */}
+      <AttractionDetail />
     </div>
   );
 }

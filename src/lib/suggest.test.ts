@@ -45,6 +45,52 @@ describe('suggestNext', () => {
     expect(res.find((r) => r.item.id === 'big-thunder')?.priority).toBe('must');
   });
 
+  it('boosts a ride running shorter than typical and reports vsAvg', () => {
+    const big = ITEMS_BY_ID['big-thunder'];
+    // Pin big-thunder's live wait well below its average; it should rank ahead
+    // of an equivalent untagged ride and expose a negative vsAvg.
+    const res = suggestNext(
+      { ...ctx(), live: { 'big-thunder': { wait: Math.max(0, big.avgWait - 40), isOpen: true } } },
+      ITEMS_BY_ID['space-mountain'],
+      30,
+    );
+    const hit = res.find((r) => r.item.id === 'big-thunder');
+    expect(hit?.vsAvg).toBe(Math.max(0, big.avgWait - 40) - big.avgWait);
+    expect(hit?.vsAvg).toBeLessThan(0);
+  });
+
+  it('penalizes a ride busier than typical', () => {
+    const big = ITEMS_BY_ID['big-thunder'];
+    const calm = suggestNext(ctx(), ITEMS_BY_ID['space-mountain'], 100).find(
+      (r) => r.item.id === 'big-thunder',
+    );
+    const busy = suggestNext(
+      { ...ctx(), live: { 'big-thunder': { wait: big.avgWait + 40, isOpen: true } } },
+      ITEMS_BY_ID['space-mountain'],
+      100,
+    ).find((r) => r.item.id === 'big-thunder');
+    // Same walk/priority, but a busier-than-usual line scores worse (higher).
+    expect(busy!.score).toBeGreaterThan(calm!.score);
+  });
+
+  it('ignores live waits for a closed ride (no vsAvg)', () => {
+    const res = suggestNext(
+      { ...ctx(), live: { 'big-thunder': { wait: 0, isOpen: false } } },
+      ITEMS_BY_ID['space-mountain'],
+      30,
+    );
+    expect(res.find((r) => r.item.id === 'big-thunder')?.vsAvg).toBeUndefined();
+  });
+
+  it('never suggests an attraction the party has already completed', () => {
+    const res = suggestNext(
+      { ...ctx(), completed: ['big-thunder'] },
+      ITEMS_BY_ID['space-mountain'],
+      100,
+    );
+    expect(res.some((r) => r.item.id === 'big-thunder')).toBe(false);
+  });
+
   it('skips items already in the route', () => {
     const c = {
       ...ctx(),

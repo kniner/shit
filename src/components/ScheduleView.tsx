@@ -9,6 +9,7 @@ import { EstimatorControls } from './EstimatorControls';
 import { PlanBuilder } from './PlanBuilder';
 import { SuggestNext } from './SuggestNext';
 import { TodoList } from './TodoList';
+import { WeatherCard } from './WeatherCard';
 
 /**
  * The scheduling page: pick a day (tab), pull tagged picks from the to-do list
@@ -40,6 +41,8 @@ export function ScheduleView() {
           />
         </label>
       </div>
+
+      {day.date && <WeatherCard date={day.date} />}
 
       {!isOther && <ParkHoursCard />}
 

@@ -41,6 +41,7 @@ export function AttractionCard({ attraction, showAddToRoute = true }: Props) {
   const live = useStore((s) => s.live);
   const addStop = useStore((s) => s.addStop);
   const removeStop = useStore((s) => s.removeStop);
+  const openDetail = useStore((s) => s.openDetail);
   const day = useActiveDay();
 
   const summary = summarizeTags(attraction.id, doc.tags, doc.collaborators, meId);
@@ -54,7 +55,12 @@ export function AttractionCard({ attraction, showAddToRoute = true }: Props) {
     <div className="flex flex-col gap-3 rounded-lg bg-white p-3 shadow-sm ring-1 ring-slate-100">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold leading-tight">{attraction.name}</h3>
+          <button
+            onClick={() => openDetail(attraction.id)}
+            className="text-left text-sm font-semibold leading-tight hover:text-indigo-600 hover:underline"
+          >
+            {attraction.name}
+          </button>
           <span
             className={`mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${KIND_BADGE[attraction.kind]}`}
           >
@@ -174,6 +180,24 @@ export function AttractionCard({ attraction, showAddToRoute = true }: Props) {
       {attraction.note && (
         <p className="text-[11px] italic text-slate-400">{attraction.note}</p>
       )}
+
+      {attraction.url && (
+        <a
+          href={attraction.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] font-semibold text-indigo-600 hover:underline"
+        >
+          View menu ↗
+        </a>
+      )}
+
+      <button
+        onClick={() => openDetail(attraction.id)}
+        className="self-start text-[11px] font-semibold text-slate-500 hover:text-indigo-600 hover:underline"
+      >
+        More details →
+      </button>
 
       <TagControl attractionId={attraction.id} summary={summary} />
     </div>
