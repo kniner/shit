@@ -16,6 +16,22 @@ function money(n: number): string {
   return `$${n.toFixed(2)}`;
 }
 
+/** Link to a Venmo profile. */
+function venmoProfileLink(handle: string): string {
+  return `https://venmo.com/u/${encodeURIComponent(handle)}`;
+}
+
+/** Deep link to Venmo with the pay action, recipient and amount pre-filled. */
+function venmoPayLink(handle: string, amount: number, note: string): string {
+  const params = new URLSearchParams({
+    txn: 'pay',
+    recipients: handle,
+    amount: amount.toFixed(2),
+    note,
+  });
+  return `https://venmo.com/?${params.toString()}`;
+}
+
 /** Render a trip-info value: links and phone numbers become tappable. */
 function InfoValue({ value }: { value: string }) {
   const v = value.trim();
@@ -381,15 +397,17 @@ interface Balance {
 }
 
 /** Greedy settle-up: who pays whom to zero everyone out. */
-function settleUp(balances: Balance[]): { from: string; to: string; amount: number }[] {
-  const debtors = balances.filter((b) => b.net < -0.01).map((b) => ({ name: b.collaborator.name, amt: -b.net }));
-  const creditors = balances.filter((b) => b.net > 0.01).map((b) => ({ name: b.collaborator.name, amt: b.net }));
-  const out: { from: string; to: string; amount: number }[] = [];
+function settleUp(
+  balances: Balance[],
+): { from: Collaborator; to: Collaborator; amount: number }[] {
+  const debtors = balances.filter((b) => b.net < -0.01).map((b) => ({ c: b.collaborator, amt: -b.net }));
+  const creditors = balances.filter((b) => b.net > 0.01).map((b) => ({ c: b.collaborator, amt: b.net }));
+  const out: { from: Collaborator; to: Collaborator; amount: number }[] = [];
   let i = 0;
   let j = 0;
   while (i < debtors.length && j < creditors.length) {
     const pay = Math.min(debtors[i].amt, creditors[j].amt);
-    out.push({ from: debtors[i].name, to: creditors[j].name, amount: pay });
+    out.push({ from: debtors[i].c, to: creditors[j].c, amount: pay });
     debtors[i].amt -= pay;
     creditors[j].amt -= pay;
     if (debtors[i].amt < 0.01) i += 1;
@@ -402,6 +420,7 @@ function Budget() {
   const expenses = useStore((s) => s.doc.expenses);
   const collaborators = useStore((s) => s.doc.collaborators);
   const addExpense = useStore((s) => s.addExpense);
+  const meId = useStore((s) => s.meId);
 
   const [label, setLabel] = useState('');
   const [amount, setAmount] = useState('');
@@ -485,9 +504,20 @@ function Budget() {
           <ul className="space-y-1">
             {balances.map((b) => (
               <li key={b.collaborator.id} className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-1.5">
+                <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ background: b.collaborator.color }} />
                   {b.collaborator.name}
+                  {b.collaborator.venmo && (
+                    <a
+                      href={venmoProfileLink(b.collaborator.venmo)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-full bg-[#008CFF]/10 px-1.5 py-0.5 text-[10px] font-semibold text-[#008CFF] hover:bg-[#008CFF]/20"
+                      title={`@${b.collaborator.venmo} on Venmo`}
+                    >
+                      Venmo
+                    </a>
+                  )}
                   <span className="text-[11px] text-slate-400">
                     paid {money(b.paid)} · share {money(b.owed)}
                   </span>
@@ -506,16 +536,34 @@ function Budget() {
               </li>
             ))}
           </ul>
+
+          {meId && <VenmoEditor />}
+
           {settlements.length > 0 && (
             <div className="mt-2 border-t border-slate-100 pt-2">
               <h3 className="mb-1 text-xs font-bold uppercase tracking-wide text-slate-500">Settle up</h3>
-              <ul className="space-y-0.5 text-[13px] text-slate-600">
+              <ul className="space-y-1 text-[13px] text-slate-600">
                 {settlements.map((s, i) => (
-                  <li key={i}>
-                    <strong>{s.from}</strong> → <strong>{s.to}</strong>: {money(s.amount)}
+                  <li key={i} className="flex flex-wrap items-center gap-x-1.5">
+                    <span>
+                      <strong>{s.from.name}</strong> → <strong>{s.to.name}</strong>: {money(s.amount)}
+                    </span>
+                    {s.to.venmo && (
+                      <a
+                        href={venmoPayLink(s.to.venmo, s.amount, 'Disney trip 🎢')}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-full bg-[#008CFF] px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-[#0074d4]"
+                      >
+                        Pay {s.to.name.split(' ')[0]} ↗
+                      </a>
+                    )}
                   </li>
                 ))}
               </ul>
+              <p className="mt-1 text-[10px] text-slate-400">
+                Venmo links pre-fill the person and amount — you confirm everything in the app.
+              </p>
             </div>
           )}
         </div>
@@ -749,6 +797,81 @@ function Budget() {
         </button>
       </form>
     </section>
+  );
+}
+
+/**
+ * Lets the current user set their own Venmo handle so others get a tap-to-pay
+ * link in settle-up. Only ever edits your own entry.
+ */
+function VenmoEditor() {
+  const meId = useStore((s) => s.meId);
+  const collaborators = useStore((s) => s.doc.collaborators);
+  const setVenmo = useStore((s) => s.setVenmo);
+
+  const me = collaborators.find((c) => c.id === meId);
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState('');
+
+  if (!me) return null;
+
+  const start = () => {
+    setValue(me.venmo ?? '');
+    setEditing(true);
+  };
+  const save = () => {
+    setVenmo(value);
+    setEditing(false);
+  };
+
+  return (
+    <div className="mt-2 border-t border-slate-100 pt-2 text-[11px]">
+      {editing ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-slate-500">Your Venmo</span>
+          <span className="text-slate-400">@</span>
+          <input
+            autoFocus
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && save()}
+            placeholder="your-handle"
+            className="w-40 rounded border border-slate-300 px-2 py-0.5 text-[11px]"
+          />
+          <button
+            onClick={save}
+            className="rounded bg-slate-900 px-2 py-0.5 font-semibold text-white"
+          >
+            Save
+          </button>
+          {me.venmo && (
+            <button
+              onClick={() => {
+                setVenmo('');
+                setEditing(false);
+              }}
+              className="text-slate-400 underline hover:text-rose-600"
+            >
+              remove
+            </button>
+          )}
+          <button onClick={() => setEditing(false)} className="text-slate-400 hover:text-slate-600">
+            cancel
+          </button>
+        </div>
+      ) : me.venmo ? (
+        <span className="text-slate-500">
+          Your Venmo: <span className="font-semibold text-[#008CFF]">@{me.venmo}</span>{' '}
+          <button onClick={start} className="text-slate-400 underline hover:text-slate-600">
+            edit
+          </button>
+        </span>
+      ) : (
+        <button onClick={start} className="font-semibold text-[#008CFF] hover:underline">
+          + Add your Venmo (so people can pay you back)
+        </button>
+      )}
+    </div>
   );
 }
 

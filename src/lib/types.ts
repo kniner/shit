@@ -54,6 +54,8 @@ export interface Attraction {
   onlyDuringEvent?: EventType;
   /** Short note shown on the card (e.g. characters at a dining location). */
   note?: string;
+  /** Optional external link (e.g. the official menu page for a dining spot). */
+  url?: string;
   /** One-line explanation of what the ride/attraction is. */
   description?: string;
   /** Gluten-free options available (food/dining locations). */
@@ -162,6 +164,11 @@ export interface Collaborator {
   id: string;
   name: string;
   color: string;
+  /**
+   * Optional Venmo username (no leading @), used to build settle-up payment
+   * links on the budget page. Each person sets their own.
+   */
+  venmo?: string;
 }
 
 /**
@@ -245,6 +252,13 @@ export interface PlanDoc {
   bookingCustom: BookingTask[];
   /** Owner-only: the organizer's private scratchpad notes. */
   organizerNotes: string;
+  /**
+   * Attraction ids the party has completed ("we rode it"). Shared across the
+   * whole trip and every device, keyed by attraction id — done is done no matter
+   * which day it was scheduled on. Checked off from the schedule or Suggested
+   * Next; drives the "done" styling and the completed tally.
+   */
+  completed: string[];
 }
 
 /** A pre-trip booking/prep task, due a number of days before the trip starts. */

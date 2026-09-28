@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ITEMS_BY_ID, itemsForDay } from '../data';
 import { amenitiesForPark, type AmenityType } from '../data/amenities';
 import { PARK_PATHS } from '../data/mapPaths';
+import { PARK_TREES, PARK_WATER } from '../data/mapFeatures';
+import { RIDE_WARNINGS } from '../data/rideInfo';
 import { TOT_PATH, TOT_STATIONS } from '../data/trickOrTreat';
+import { centroid, regionPath } from '../lib/mapGeom';
 import { summarizeTags, TAG_META } from '../lib/tags';
 import type { Attraction, ParkId } from '../lib/types';
 import { useActiveDay, useStore } from '../store/useStore';
@@ -18,6 +21,9 @@ const AMENITY_GLYPH: Record<AmenityType, string> = {
   landmark: '🏰',
   kids: '🧸',
   break: '🧊',
+  firstaid: '⛑️',
+  locker: '🔒',
+  dining: '🍽️',
 };
 const AMENITY_LABEL: Record<AmenityType, string> = {
   restroom: 'Restroom',
@@ -27,11 +33,17 @@ const AMENITY_LABEL: Record<AmenityType, string> = {
   landmark: 'Landmark',
   kids: 'Kids interactive',
   break: 'Indoor break',
+  firstaid: 'First aid',
+  locker: 'Lockers',
+  dining: 'Table-service dining',
 };
 /** Layers the user can toggle (landmarks are always shown). */
 const AMENITY_TOGGLES: { type: AmenityType; label: string }[] = [
   { type: 'restroom', label: '🚻 Restrooms' },
   { type: 'water', label: '🚰 Water' },
+  { type: 'firstaid', label: '⛑️ First aid' },
+  { type: 'locker', label: '🔒 Lockers' },
+  { type: 'dining', label: '🍽️ Dining' },
   { type: 'photopass', label: '📷 PhotoPass' },
   { type: 'photospot', label: '✨ Photo spots' },
   { type: 'kids', label: '🧸 Kids' },
@@ -100,7 +112,9 @@ export function ParkMap() {
   const live = useStore((s) => s.live);
   const liveStatus = useStore((s) => s.liveStatus);
   const refreshLive = useStore((s) => s.refreshLive);
+  const openDetail = useStore((s) => s.openDetail);
   const [showWaits, setShowWaits] = useState(false);
+  const [labelsOn, setLabelsOn] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [amenityInfo, setAmenityInfo] = useState<string | null>(null);
   const [layers, setLayers] = useState<Record<AmenityType, boolean>>({
@@ -111,6 +125,9 @@ export function ParkMap() {
     landmark: true,
     kids: false,
     break: false,
+    firstaid: false,
+    locker: false,
+    dining: false,
   });
 
   const items = useMemo(() => itemsForDay(day.park, day.event), [day.park, day.event]);
@@ -144,36 +161,32 @@ export function ParkMap() {
   }, [day.park]);
 
   const zones = useMemo(() => {
-    const P = 24;
     return (ZONES[day.park] ?? [])
       .map((z) => {
-        const pts = items.filter((i) => z.match(i.land));
+        const pts = items.filter((i) => z.match(i.land)).map((i) => i.coords);
         if (pts.length === 0) return null;
-        const xs = pts.map((p) => p.coords.x);
-        const ys = pts.map((p) => p.coords.y);
-        const minX = Math.min(...xs);
-        const minY = Math.min(...ys);
+        const c = centroid(pts);
+        const minY = Math.min(...pts.map((p) => p.y));
         return {
           label: z.label,
           color: z.color,
-          x: minX - P,
-          y: minY - P,
-          w: Math.max(...xs) - minX + P * 2,
-          h: Math.max(...ys) - minY + P * 2,
+          path: regionPath(pts, 18),
+          lx: c.x,
+          ly: minY - 22, // label rides just above the land
         };
       })
       .filter((z): z is NonNullable<typeof z> => z !== null);
   }, [day.park, items]);
 
   const routePoints = useMemo(() => {
-    const pts: { x: number; y: number; n: number }[] = [];
+    const pts: { x: number; y: number; n: number; id: string }[] = [];
     let n = 0;
     for (const s of day.stops) {
       if (s.kind === 'custom' || s.kind === 'split' || !s.attractionId) continue;
       const a = ITEMS_BY_ID[s.attractionId];
       if (!a) continue;
       n += 1;
-      pts.push({ x: a.coords.x, y: a.coords.y, n });
+      pts.push({ x: a.coords.x, y: a.coords.y, n, id: a.id });
     }
     return pts;
   }, [day.stops]);
@@ -282,6 +295,15 @@ export function ParkMap() {
           <label className="flex items-center gap-1">
             <input
               type="checkbox"
+              checked={labelsOn}
+              onChange={(e) => setLabelsOn(e.target.checked)}
+              className="h-3 w-3 accent-slate-700"
+            />
+            🏷 Labels
+          </label>
+          <label className="flex items-center gap-1">
+            <input
+              type="checkbox"
               checked={showWaits}
               onChange={(e) => {
                 setShowWaits(e.target.checked);
@@ -334,30 +356,123 @@ export function ParkMap() {
           onPointerCancel={onPointerUp}
           onWheel={onWheel}
         >
-          {/* Land zones */}
+          <defs>
+            <linearGradient id="grass" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#e9f9ee" />
+              <stop offset="100%" stopColor="#d6f0dd" />
+            </linearGradient>
+            <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#bfe6fb" />
+              <stop offset="100%" stopColor="#8fd0f5" />
+            </linearGradient>
+            <radialGradient id="landSheen" cx="0.5" cy="0.3" r="0.8">
+              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+            </radialGradient>
+            <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+              <feDropShadow dx="0" dy="1.2" stdDeviation="1.2" floodColor="#0f172a" floodOpacity="0.35" />
+            </filter>
+            <filter id="landShadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#166534" floodOpacity="0.18" />
+            </filter>
+          </defs>
+
+          {/* Parkland background — a soft green ground plane so the map reads as
+              a park, not dots on white. Oversized so it always fills the view. */}
+          <rect
+            x={base.x - base.w}
+            y={base.y - base.h}
+            width={base.w * 3}
+            height={base.h * 3}
+            fill="url(#grass)"
+            pointerEvents="none"
+          />
+
+          {/* Land zones — smooth organic shapes with a soft sheen & shadow.
+              Labels are drawn later, on top of everything, so they stay legible. */}
           {zones.map((z) => (
             <g key={z.label} pointerEvents="none">
-              <rect x={z.x} y={z.y} width={z.w} height={z.h} rx={16} fill={z.color} opacity={0.4} />
-              <text x={z.x + z.w / 2} y={z.y + 15 * s} textAnchor="middle" fontSize={13 * s} fontWeight={700} fill="#334155" opacity={0.75}>
-                {z.label}
-              </text>
+              <path d={z.path} fill={z.color} opacity={0.7} filter="url(#landShadow)" />
+              <path d={z.path} fill="url(#landSheen)" />
+              <path d={z.path} fill="none" stroke="#ffffff" strokeOpacity={0.7} strokeWidth={2 * s} />
             </g>
           ))}
 
-          {/* Walking paths */}
-          {paths.map((p, i) => (
-            <polyline
-              key={`path-${i}`}
-              points={p.map((pt) => `${pt.x},${pt.y}`).join(' ')}
-              fill="none"
-              stroke="#ffffff"
-              strokeWidth={7 * s}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              opacity={0.9}
-              pointerEvents="none"
-            />
+          {/* Water features (moat / rivers / lagoon) */}
+          {(PARK_WATER[day.park] ?? []).map((w, i) => {
+            if (w.kind === 'ring') {
+              return (
+                <circle
+                  key={`water-${i}`}
+                  cx={w.cx}
+                  cy={w.cy}
+                  r={w.r}
+                  fill="none"
+                  stroke="#7dd3fc"
+                  strokeWidth={6 * s}
+                  pointerEvents="none"
+                />
+              );
+            }
+            if (w.kind === 'circle') {
+              return (
+                <g key={`water-${i}`} pointerEvents="none">
+                  <circle cx={w.cx} cy={w.cy} r={w.r} fill="url(#water)" stroke="#7dd3fc" strokeWidth={1.5 * s} />
+                  {w.label && (
+                    <text x={w.cx} y={w.cy} dy="0.35em" textAnchor="middle" fontSize={10 * s} fill="#0369a1" opacity={0.75} fontStyle="italic">
+                      {w.label}
+                    </text>
+                  )}
+                </g>
+              );
+            }
+            return (
+              <path
+                key={`water-${i}`}
+                d={regionPath(w.points, 6)}
+                fill="url(#water)"
+                stroke="#7dd3fc"
+                strokeWidth={1.5 * s}
+                pointerEvents="none"
+              />
+            );
+          })}
+
+          {/* Trees / landscaping */}
+          {(PARK_TREES[day.park] ?? []).map((t, i) => (
+            <g key={`tree-${i}`} pointerEvents="none">
+              <ellipse cx={t.x} cy={t.y + 3.5 * s} rx={5.5 * s} ry={2 * s} fill="#0f172a" opacity={0.12} />
+              <circle cx={t.x - 2.4 * s} cy={t.y} r={4 * s} fill="#4ea165" />
+              <circle cx={t.x + 2.4 * s} cy={t.y} r={4 * s} fill="#3f8f57" />
+              <circle cx={t.x} cy={t.y - 2.6 * s} r={4.4 * s} fill="#5cb374" />
+            </g>
           ))}
+
+          {/* Walking paths — drawn as a wider warm-grey walkway with a soft
+              cream centre so they look like paved paths rather than plain lines. */}
+          {paths.map((p, i) => {
+            const pts = p.map((pt) => `${pt.x},${pt.y}`).join(' ');
+            return (
+              <g key={`path-${i}`} pointerEvents="none">
+                <polyline
+                  points={pts}
+                  fill="none"
+                  stroke="#d6d3d1"
+                  strokeWidth={10 * s}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <polyline
+                  points={pts}
+                  fill="none"
+                  stroke="#faf7f0"
+                  strokeWidth={6 * s}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </g>
+            );
+          })}
 
           {/* Trick-or-treat trail (MNSSHP) */}
           {isHalloween && showTot && (
@@ -426,13 +541,23 @@ export function ParkMap() {
                 <circle
                   cx={it.coords.x}
                   cy={it.coords.y}
-                  r={(isSel ? 9 : 7) * s}
+                  r={(isSel ? 9 : 6.5) * s}
                   fill={fill}
-                  stroke={OUTLINE[typeCat(it.kind)]}
-                  strokeWidth={(isSel ? 4 : 2) * s}
+                  stroke={isSel ? OUTLINE[typeCat(it.kind)] : '#ffffff'}
+                  strokeWidth={(isSel ? 3.5 : 2) * s}
+                  filter="url(#soft)"
                 >
                   <title>{it.name}</title>
                 </circle>
+                <circle
+                  cx={it.coords.x}
+                  cy={it.coords.y}
+                  r={(isSel ? 9 : 6.5) * s}
+                  fill="none"
+                  stroke={OUTLINE[typeCat(it.kind)]}
+                  strokeWidth={1.5 * s}
+                  pointerEvents="none"
+                />
                 {showBadge && (
                   <g pointerEvents="none">
                     <circle
@@ -460,6 +585,33 @@ export function ParkMap() {
             );
           })}
 
+          {/* Attraction name labels. Off by default to keep the map clean —
+              only the selected marker is named. Zoom in past ~2.5× or flip the
+              🏷 Labels toggle to reveal the rest. */}
+          {items.map((it) => {
+            const isSel = it.id === selectedId;
+            const show = labelsOn || zoom >= 2.5 || isSel;
+            if (!show) return null;
+            return (
+              <text
+                key={`lbl-${it.id}`}
+                x={it.coords.x}
+                y={it.coords.y + 12 * s}
+                textAnchor="middle"
+                fontSize={8 * s}
+                fontWeight={isSel ? 700 : 500}
+                fill="#0f172a"
+                stroke="#ffffff"
+                strokeWidth={2.5 * s}
+                paintOrder="stroke"
+                strokeLinejoin="round"
+                pointerEvents="none"
+              >
+                {it.name}
+              </text>
+            );
+          })}
+
           {/* Toggleable amenity markers */}
           {amenities
             .filter((a) => a.type !== 'landmark' && layers[a.type])
@@ -483,11 +635,13 @@ export function ParkMap() {
               );
             })}
 
-          {/* Landmarks (always shown) */}
+          {/* Landmarks (always shown) — the park icons drawn as real shapes. */}
           {amenities
             .filter((a) => a.type === 'landmark')
             .map((a) => {
               const caption = `${a.land}${a.note ? ` — ${a.note}` : ''}`;
+              const isCastle = a.id.includes('castle');
+              const isSphere = a.id.includes('sse');
               return (
                 <g
                   key={a.id}
@@ -497,14 +651,41 @@ export function ParkMap() {
                   }}
                   style={{ cursor: 'pointer' }}
                 >
-                  <circle cx={a.coords.x} cy={a.coords.y} r={14 * s} fill="transparent" />
-                  <text x={a.coords.x} y={a.coords.y} dy="0.35em" textAnchor="middle" fontSize={22 * s}>
-                    {AMENITY_GLYPH.landmark}
-                    <title>{caption}</title>
-                  </text>
+                  <circle cx={a.coords.x} cy={a.coords.y} r={18 * s} fill="transparent" />
+                  {isCastle ? (
+                    <CastleGlyph x={a.coords.x} y={a.coords.y} s={s} />
+                  ) : isSphere ? (
+                    <SphereGlyph x={a.coords.x} y={a.coords.y} s={s} />
+                  ) : (
+                    <text x={a.coords.x} y={a.coords.y} dy="0.35em" textAnchor="middle" fontSize={22 * s}>
+                      {AMENITY_GLYPH.landmark}
+                    </text>
+                  )}
+                  <title>{caption}</title>
                 </g>
               );
             })}
+
+          {/* Land labels (top layer so they read over shapes & markers) */}
+          {zones.map((z) => (
+            <text
+              key={`zl-${z.label}`}
+              x={z.lx}
+              y={z.ly}
+              textAnchor="middle"
+              fontSize={11 * s}
+              fontWeight={800}
+              fill="#1f2937"
+              stroke="#ffffff"
+              strokeWidth={3 * s}
+              paintOrder="stroke"
+              strokeLinejoin="round"
+              opacity={0.92}
+              pointerEvents="none"
+            >
+              {z.label}
+            </text>
+          ))}
 
           {/* Route order numbers */}
           {routePoints.map((p) => (
@@ -533,30 +714,112 @@ export function ParkMap() {
       </div>
 
       {selected ? (
-        <p className="text-[11px] text-slate-600">
-          <strong>{selected.name}</strong> · {selected.land} · {TYPE_LABEL[typeCat(selected.kind)]}
-          {(() => {
-            const lw = live[selected.id];
-            if (!lw) return null;
-            return (
-              <span style={{ color: lw.isOpen ? waitColor(lw.wait) : undefined }} className="ml-1 font-semibold">
-                {' '}· {lw.isOpen ? `${lw.wait} min now` : 'closed'}
-              </span>
-            );
-          })()}
-          {selected.description && (
-            <span className="mt-0.5 block text-slate-500">{selected.description}</span>
-          )}
-        </p>
+        (() => {
+          const lw = live[selected.id];
+          const warn = RIDE_WARNINGS[selected.id];
+          const consensus = summarizeTags(selected.id, tags, collaborators, meId).consensus;
+          const chip = 'rounded bg-slate-100 px-1.5 py-0.5 text-slate-600';
+          return (
+            <div className="space-y-1 text-[11px] text-slate-600">
+              <p>
+                <strong>{selected.name}</strong> · {selected.land} ·{' '}
+                {TYPE_LABEL[typeCat(selected.kind)]}
+                {consensus && (
+                  <span className="ml-1 font-semibold" style={{ color: TAG_META[consensus].color }}>
+                    · {TAG_META[consensus].short}
+                  </span>
+                )}
+              </p>
+              <div className="flex flex-wrap gap-1 text-[10px]">
+                {lw && (
+                  <span
+                    className="rounded px-1.5 py-0.5 font-semibold text-white"
+                    style={{ background: lw.isOpen ? waitColor(lw.wait) : '#94a3b8' }}
+                  >
+                    {lw.isOpen ? `${lw.wait} min now` : 'closed'}
+                  </span>
+                )}
+                {selected.avgWait > 0 && <span className={chip}>typically ~{selected.avgWait}m</span>}
+                {selected.duration > 0 && <span className={chip}>lasts {selected.duration}m</span>}
+                {warn?.heightMin && <span className={chip}>📏 {warn.heightMin}″ min</span>}
+                {warn?.motion && <span className={chip}>🌀 motion</span>}
+                {warn?.bigTall && <span className={chip}>📐 fit</span>}
+              </div>
+              {selected.description && <p className="text-slate-500">{selected.description}</p>}
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={() => openDetail(selected.id)}
+                  className="font-semibold text-indigo-600 hover:underline"
+                >
+                  Full details →
+                </button>
+                {selected.url && (
+                  <a
+                    href={selected.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-indigo-600 hover:underline"
+                  >
+                    View menu ↗
+                  </a>
+                )}
+              </div>
+            </div>
+          );
+        })()
       ) : amenityInfo ? (
         <p className="text-[11px] text-slate-600">{amenityInfo}</p>
       ) : (
         <p className="text-[10px] text-slate-400">
-          Tap a marker for details · drag to pan · +/− to zoom. Schematic layout;
-          white lines are walkways, dashed line is your route.
+          Tap a marker for details · drag to pan · +/− to zoom (names appear as you
+          zoom in, or flip on 🏷 Labels). Schematic layout; white lines are walkways,
+          blue is water, dashed line is your route.
         </p>
       )}
     </section>
+  );
+}
+
+/** A little stylized Cinderella Castle, authored in local units and placed via
+ *  a translate+scale so it tracks zoom like the other markers. */
+function CastleGlyph({ x, y, s }: { x: number; y: number; s: number }) {
+  const wall = '#e2e8f0';
+  const wallStroke = '#94a3b8';
+  const roof = '#3b82f6';
+  const roofStroke = '#1d4ed8';
+  return (
+    <g transform={`translate(${x} ${y}) scale(${s})`} strokeLinejoin="round" filter="url(#soft)">
+      {/* side towers */}
+      <rect x={-22} y={-14} width={8} height={26} fill={wall} stroke={wallStroke} strokeWidth={1.2} />
+      <polygon points="-23,-14 -13,-14 -18,-27" fill={roof} stroke={roofStroke} strokeWidth={1.2} />
+      <rect x={14} y={-14} width={8} height={26} fill={wall} stroke={wallStroke} strokeWidth={1.2} />
+      <polygon points="13,-14 23,-14 18,-27" fill={roof} stroke={roofStroke} strokeWidth={1.2} />
+      {/* central keep */}
+      <rect x={-9} y={-22} width={18} height={34} fill={wall} stroke={wallStroke} strokeWidth={1.4} />
+      <polygon points="-10,-22 10,-22 0,-42" fill={roof} stroke={roofStroke} strokeWidth={1.4} />
+      {/* gate */}
+      <path d="M-4,12 L-4,2 A4,4 0 0 1 4,2 L4,12 Z" fill="#64748b" />
+      {/* flag */}
+      <line x1={0} y1={-42} x2={0} y2={-49} stroke="#334155" strokeWidth={1.1} />
+      <polygon points="0,-49 8,-46 0,-43" fill="#ec4899" />
+    </g>
+  );
+}
+
+/** Spaceship Earth — a geodesic sphere with a few facet lines. */
+function SphereGlyph({ x, y, s }: { x: number; y: number; s: number }) {
+  const r = 16;
+  return (
+    <g transform={`translate(${x} ${y}) scale(${s})`} filter="url(#soft)">
+      <circle cx={0} cy={0} r={r} fill="#cbd5e1" stroke="#64748b" strokeWidth={1.4} />
+      <g stroke="#94a3b8" strokeWidth={0.8} fill="none">
+        <circle cx={0} cy={0} r={r * 0.6} />
+        <polygon points="0,-16 14,-8 14,8 0,16 -14,8 -14,-8" />
+        <line x1={0} y1={-16} x2={0} y2={16} />
+        <line x1={-14} y1={-8} x2={14} y2={8} />
+        <line x1={14} y1={-8} x2={-14} y2={8} />
+      </g>
+    </g>
   );
 }
 

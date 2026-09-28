@@ -39,6 +39,13 @@ export class SupabaseSyncProvider implements SyncProvider {
   }
 
   async save(doc: PlanDoc): Promise<void> {
+    // Safety net: never overwrite the shared row with a doc that has no people
+    // and no tags. That state only arises when a load failed (e.g. the project
+    // was paused) and the app fell back to an empty document — saving it would
+    // blank out everyone's trip. A real trip always has at least one
+    // collaborator once someone has joined, so this only blocks the empty
+    // fallback, never genuine edits.
+    if (doc.collaborators.length === 0 && doc.tags.length === 0) return;
     await this.client
       .from(TABLE)
       .upsert({ id: TRIP_ID, doc, updated_at: new Date().toISOString() });

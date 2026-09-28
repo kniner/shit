@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { itemsForPark, landsForPark, PARKS, WISHLIST_PARK_IDS } from '../data';
 import type { ParkId } from '../lib/types';
 import { ItemList } from './ItemList';
+import { LiveWaitsBar } from './LiveWaitsBar';
 import { RideKey } from './RideKey';
 import { RideQuiz } from './RideQuiz';
 
@@ -39,6 +40,8 @@ export function TagView() {
         Tag what you want to do at {PARKS[park].name}. Halloween-party and Food & Wine
         items are included too — schedule them onto specific days next.
       </p>
+
+      <LiveWaitsBar />
 
       <RideQuiz />
 

@@ -11,7 +11,10 @@ export type AmenityType =
   | 'photospot'
   | 'landmark'
   | 'kids'
-  | 'break';
+  | 'break'
+  | 'firstaid'
+  | 'locker'
+  | 'dining';
 
 export interface Amenity {
   id: string;
@@ -101,6 +104,22 @@ export const AMENITIES: Amenity[] = [
   { id: 'ep-break-seas', park: 'epcot', type: 'break', land: 'The Seas pavilion (World Nature)', coords: { x: 140, y: 162 }, note: 'Huge AC aquarium — wander & rest, great for kids' },
   { id: 'ep-break-american', park: 'epcot', type: 'break', land: 'The American Adventure (World Showcase)', coords: { x: 260, y: 600 }, note: 'AC theater show, ~29 min — a real sit-down break' },
   { id: 'ep-break-shorts', park: 'epcot', type: 'break', land: 'Disney & Pixar Short Film Festival', coords: { x: 200, y: 255 }, note: 'AC theater of animated shorts — easy downtime' },
+
+  // First aid stations
+  { id: 'mk-firstaid', park: 'mk', type: 'firstaid', land: 'First Aid (Main Street, next to Casey’s)', coords: { x: 278, y: 448 }, note: 'Nurses on staff — bandages, meds, quiet cots, allergy help' },
+  { id: 'ep-firstaid', park: 'epcot', type: 'firstaid', land: 'First Aid (World Celebration, by the Odyssey)', coords: { x: 348, y: 158 }, note: 'Nurses on staff — bandages, meds, quiet cots, allergy help' },
+
+  // Locker rental
+  { id: 'mk-lockers', park: 'mk', type: 'locker', land: 'Lockers (under the Main Street train station)', coords: { x: 312, y: 472 }, note: 'Daily rental near the entrance — stash jackets & souvenirs' },
+  { id: 'ep-lockers', park: 'epcot', type: 'locker', land: 'Lockers (near the main entrance)', coords: { x: 288, y: 118 }, note: 'Daily rental near the entrance — stash jackets & souvenirs' },
+
+  // A few marquee sit-down dining spots (tap for the vibe; book on My Disney Experience)
+  { id: 'mk-dine-bog', park: 'mk', type: 'dining', land: 'Be Our Guest (Fantasyland)', coords: { x: 258, y: 158 }, note: 'Beast’s castle — French table service, hugely popular (book early)' },
+  { id: 'mk-dine-plaza', park: 'mk', type: 'dining', land: 'The Plaza Restaurant (Main Street)', coords: { x: 322, y: 452 }, note: 'Classic sit-down sandwiches & sundaes by the hub' },
+  { id: 'mk-dine-skipper', park: 'mk', type: 'dining', land: 'Skipper Canteen (Adventureland)', coords: { x: 190, y: 372 }, note: 'Jungle Cruise–themed table service — usually easy to book' },
+  { id: 'ep-dine-coral', park: 'epcot', type: 'dining', land: 'Coral Reef (The Seas)', coords: { x: 150, y: 178 }, note: 'Dine beside the giant aquarium — seafood & views' },
+  { id: 'ep-dine-mexico', park: 'epcot', type: 'dining', land: 'San Angel Inn (Mexico)', coords: { x: 438, y: 400 }, note: 'Indoor twilight setting inside the Mexico pyramid' },
+  { id: 'ep-dine-france', park: 'epcot', type: 'dining', land: 'Chefs de France (France)', coords: { x: 205, y: 468 }, note: 'Classic French bistro in the France pavilion' },
 ];
 
 export function amenitiesForPark(park: ParkId): Amenity[] {
