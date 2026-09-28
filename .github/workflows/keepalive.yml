@@ -1,0 +1,35 @@
+name: Supabase keep-alive
+
+# Supabase pauses free-tier projects after ~7 days with no activity, which makes
+# the planner load empty until someone manually resumes it. This hits the DB on
+# a schedule so the project stays awake. Needs the same secrets the app build
+# uses (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY).
+on:
+  schedule:
+    - cron: '17 6 */3 * *' # every 3 days, 06:17 UTC
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query the plans table to keep the project active
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "Supabase secrets not set; nothing to keep alive."
+            exit 0
+          fi
+          code=$(curl -sS -o /dev/null -w '%{http_code}' \
+            "$SUPABASE_URL/rest/v1/plans?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+          echo "Supabase responded with HTTP $code"
+          # Any HTTP response (even 4xx) means the project is awake, which is all
+          # we need. Only a total failure to connect is worth flagging.
+          if [ -z "$code" ] || [ "$code" = "000" ]; then
+            echo "Could not reach Supabase."
+            exit 1
+          fi
