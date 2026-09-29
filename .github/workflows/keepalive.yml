@@ -2,8 +2,9 @@ name: Supabase keep-alive
 
 # Supabase pauses free-tier projects after ~7 days with no activity, which makes
 # the planner load empty until someone manually resumes it. This hits the DB on
-# a schedule so the project stays awake. Needs the same secrets the app build
-# uses (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY).
+# a schedule so an ACTIVE project stays awake. It cannot wake a project that has
+# already paused (its hostname stops resolving) — resume that in the dashboard.
+# Needs the same secrets the app build uses (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY).
 #
 # NOTE: GitHub runs scheduled workflows only from the repository's DEFAULT
 # branch, which is currently claude/eloquent-bardeen-m8gwvr — that's why this
@@ -29,11 +30,11 @@ jobs:
           code=$(curl -sS -o /dev/null -w '%{http_code}' \
             "$SUPABASE_URL/rest/v1/plans?select=id&limit=1" \
             -H "apikey: $SUPABASE_ANON_KEY" \
-            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
-          echo "Supabase responded with HTTP $code"
-          # Any HTTP response (even 4xx) means the project is awake, which is all
-          # we need. Only a total failure to connect is worth flagging.
-          if [ -z "$code" ] || [ "$code" = "000" ]; then
-            echo "Could not reach Supabase."
-            exit 1
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" || true)
+          if [ -n "$code" ] && [ "$code" != "000" ]; then
+            echo "Supabase is awake (HTTP $code) — kept alive."
+          else
+            # Don't fail the run: a paused project can't be woken from here, and a
+            # red X every 3 days is just noise. Flag it as a warning instead.
+            echo "::warning::Supabase did not respond — the project is likely paused. Resume it in the dashboard; this ping keeps an active project awake but can't wake a paused one."
           fi
